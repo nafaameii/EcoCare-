@@ -382,8 +382,14 @@ try {
                                 ?>
                                 <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>">
                                     <div class="flex items-start gap-4">
-                                        <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md">
-                                            <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md overflow-hidden">
+                                            <?php if (isset($user['profile_pic']) && $user['profile_pic'] && file_exists($user['profile_pic'])): ?>
+                                                <img src="<?php echo htmlspecialchars($user['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
+                                            <?php else: ?>
+                                                <div class="w-full h-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center">
+                                                    <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="flex-1">
                                             <div class="flex items-start justify-between mb-2">
@@ -439,8 +445,14 @@ try {
                                 ?>
                                 <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>">
                                     <div class="flex items-start gap-4">
-                                        <div class="w-16 h-16 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md">
-                                            <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md overflow-hidden">
+                                            <?php if (isset($user['profile_pic']) && $user['profile_pic'] && file_exists($user['profile_pic'])): ?>
+                                                <img src="<?php echo htmlspecialchars($user['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
+                                            <?php else: ?>
+                                                <div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center">
+                                                    <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                         <div class="flex-1">
                                             <div class="flex items-start justify-between mb-2">
@@ -595,10 +607,14 @@ try {
                 'ditangguhkan': 'bg-orange-100 text-orange-700'
             };
 
+            const profilePicHtml = user.profile_pic 
+                ? `<img src="${user.profile_pic}" class="w-full h-full object-cover" alt="Profil">` 
+                : `<div class="w-full h-full bg-gradient-to-br ${user.role === 'admin' ? 'from-purple-500 to-purple-700' : 'from-ecocare-primary to-ecocare-green-dark'} flex items-center justify-center">${user.name.charAt(0).toUpperCase()}</div>`;
+
             content.innerHTML = `
                 <div class="text-center mb-6">
-                    <div class="w-24 h-24 bg-gradient-to-br ${user.role === 'admin' ? 'from-purple-500 to-purple-700' : 'from-ecocare-primary to-ecocare-green-dark'} rounded-3xl flex items-center justify-center text-white text-4xl font-bold shadow-lg mx-auto mb-4">
-                        ${user.name.charAt(0).toUpperCase()}
+                    <div class="w-24 h-24 rounded-3xl flex items-center justify-center text-white text-4xl font-bold shadow-lg mx-auto mb-4 overflow-hidden">
+                        ${profilePicHtml}
                     </div>
                     <h3 class="text-2xl font-bold text-ecocare-dark mb-2">${user.name}</h3>
                     <div class="flex items-center justify-center gap-2">

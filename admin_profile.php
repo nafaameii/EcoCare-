@@ -132,190 +132,257 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <title>Pengaturan Profil Admin - EcoCare+</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Plus Jakarta Sans', sans-serif; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
                     colors: {
-                        'ecocare-primary': '#4A7C59',
-                        'ecocare-secondary': '#8FBC8F',
-                        'ecocare-dark': '#1A3A2A',
-                        'ecocare-cream': '#F8F6F0',
+                        'ecocare-primary': '#6FAF8F',
+                        'ecocare-secondary': '#A8D5BA',
+                        'ecocare-accent': '#7DB7E8',
+                        'ecocare-cream': '#F4EBD0',
+                        'ecocare-orange': '#FFB86C',
+                        'ecocare-dark': '#2D3748',
+                        'ecocare-green-dark': '#3D8B6A'
                     }
                 }
             }
         }
     </script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .sidebar { transition: all 0.3s ease; }
+        .sidebar-link { 
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #f0fdf4;
+        }
+        .sidebar-link.active {
+            background: linear-gradient(135deg, #6FAF8F 0%, #3D8B6A 100%);
+            color: white;
+        }
+        .sidebar-link:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+        .sidebar-icon {
+            transition: transform 0.2s ease;
+        }
+    </style>
 </head>
-<body class="bg-ecocare-cream">
-    <!-- Navbar -->
-    <nav class="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-100">
-        <div class="max-w-6xl mx-auto px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <a href="index.php" class="flex items-center gap-3">
-                    <div class="w-11 h-11 bg-ecocare-primary rounded-xl flex items-center justify-center text-white text-xl">
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 bg-white shadow-lg border-r border-gray-200">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-xl flex items-center justify-center text-white text-2xl shadow-lg">
                         <i class="fas fa-leaf"></i>
                     </div>
-                    <span class="text-xl font-bold text-ecocare-dark">EcoCare+</span>
-                </a>
-
-                <div class="hidden md:flex items-center gap-8">
-                    <a href="index.php" class="text-gray-600 hover:text-ecocare-primary font-medium transition">Beranda</a>
-                    <a href="admin_dashboard.php" class="text-gray-600 hover:text-ecocare-primary font-medium transition">Dashboard</a>
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-ecocare-primary bg-ecocare-primary flex items-center justify-center text-white font-bold">
-                            <?php if (!empty($user['profile_pic']) && file_exists($user['profile_pic'])): ?>
-                                <img src="<?php echo htmlspecialchars($user['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
-                            <?php else: ?>
-                                <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
-                            <?php endif; ?>
-                        </div>
-                        <span class="text-gray-700 font-medium hidden md:block"><?php echo htmlspecialchars($user['name']); ?></span>
+                    <div>
+                        <h2 class="text-xl font-bold text-ecocare-dark">EcoCare+</h2>
+                        <p class="text-xs text-gray-500 font-semibold">Admin Panel</p>
                     </div>
-                    <a href="logout.php" class="text-gray-600 hover:text-red-600 transition flex items-center gap-2">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span class="hidden md:block">Keluar</span>
+                </div>
+            </div>
+            
+            <nav class="p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="admin_dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-tachometer-alt w-5 text-green-600"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="admin_reports.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-file-alt w-5 text-blue-600"></i>
+                            <span>Kelola Laporan</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="admin_users.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-users w-5 text-purple-600"></i>
+                            <span>Kelola Pengguna</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="admin_map.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-map-marked-alt w-5 text-red-600"></i>
+                            <span>Peta Monitoring</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="admin_statistics.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-chart-bar w-5 text-orange-500"></i>
+                            <span>Statistik</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="admin_education.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-book w-5 text-teal-600"></i>
+                            <span>Kelola Edukasi</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="admin_actions.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
+                            <i class="sidebar-icon fas fa-hands-helping w-5 text-amber-700"></i>
+                            <span>Kelola Aksi Lingkungan</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="absolute bottom-0 left-0 w-64 p-4 border-t border-gray-200 bg-white">
+                <a href="admin_profile.php" class="flex items-center gap-3 mb-4 hover:bg-gray-50 rounded-lg p-2 -mx-2 -my-2 transition">
+                    <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-ecocare-primary flex-shrink-0">
+                        <?php if (isset($_SESSION['profile_pic']) && $_SESSION['profile_pic'] && file_exists($_SESSION['profile_pic'])): ?>
+                            <img src="<?php echo htmlspecialchars($_SESSION['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
+                        <?php else: ?>
+                            <div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center text-white font-bold">
+                                <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-800 truncate"><?php echo htmlspecialchars($_SESSION['name']); ?></p>
+                        <p class="text-xs text-gray-500">Administrator</p>
+                    </div>
+                </a>
+                <a href="logout.php" class="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1">
+            <header class="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-ecocare-dark">Pengaturan Profil Admin</h1>
+                        <p class="text-gray-500 text-sm">Kelola informasi akun Anda</p>
+                    </div>
+                    <a href="index.php" class="px-4 py-2 text-gray-600 hover:text-ecocare-primary transition flex items-center gap-2">
+                        <i class="fas fa-home"></i>
+                        <span>Ke Beranda</span>
                     </a>
                 </div>
-            </div>
-        </div>
-    </nav>
+            </header>
 
-    <!-- Main Content -->
-    <div class="max-w-5xl mx-auto px-6 lg:px-8 py-12">
-        <div class="mb-8">
-            <a href="admin_dashboard.php" class="inline-flex items-center gap-2 text-gray-600 hover:text-ecocare-primary transition mb-4">
-                <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
-            </a>
-            <h1 class="text-3xl font-extrabold text-ecocare-dark">Pengaturan Profil Admin</h1>
-        </div>
+            <div class="p-8">
+                <?php if ($message): ?>
+                    <div class="<?php echo $message_type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700' ?> border px-6 py-4 rounded-xl mb-8 flex items-center gap-3">
+                        <i class="fas <?php echo $message_type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?> text-xl"></i>
+                        <?php echo htmlspecialchars($message); ?>
+                    </div>
+                <?php endif; ?>
 
-        <!-- Alert -->
-        <?php if ($message): ?>
-            <div class="mb-8 <?php echo $message_type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700' ?> px-6 py-4 rounded-xl flex items-center gap-3">
-                <i class="fas <?php echo $message_type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle' ?> text-xl"></i>
-                <?php echo htmlspecialchars($message); ?>
-            </div>
-        <?php endif; ?>
+                <div class="grid lg:grid-cols-3 gap-8">
+                    <!-- Sidebar Info -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+                            <div class="text-center">
+                                <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-ecocare-primary mx-auto mb-6 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center text-white text-5xl font-bold">
+                                    <?php if (!empty($user['profile_pic']) && file_exists($user['profile_pic'])): ?>
+                                        <img src="<?php echo htmlspecialchars($user['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
+                                    <?php else: ?>
+                                        <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
+                                    <?php endif; ?>
+                                </div>
+                                <h3 class="text-xl font-bold text-ecocare-dark mb-2"><?php echo htmlspecialchars($user['name']); ?></h3>
+                                <p class="text-gray-500 text-sm mb-4 flex items-center justify-center gap-2">
+                                    <i class="fas fa-envelope"></i>
+                                    <?php echo htmlspecialchars($user['email']); ?>
+                                </p>
+                                <span class="inline-block px-4 py-1.5 bg-ecocare-primary/10 text-ecocare-primary rounded-full text-sm font-semibold">
+                                    <i class="fas fa-shield-alt mr-1"></i> Administrator
+                                </span>
+                            </div>
 
-        <div class="grid lg:grid-cols-3 gap-8">
-            <!-- Sidebar Info -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-                    <div class="text-center">
-                        <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-ecocare-primary mx-auto mb-6 bg-ecocare-primary flex items-center justify-center text-white text-5xl font-bold">
-                            <?php if (!empty($user['profile_pic']) && file_exists($user['profile_pic'])): ?>
-                                <img src="<?php echo htmlspecialchars($user['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
-                            <?php else: ?>
-                                <?php echo strtoupper(substr($user['name'], 0, 1)); ?>
-                            <?php endif; ?>
+                            <div class="mt-8 pt-6 border-t border-gray-100">
+                                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Informasi Akun</h4>
+                                <ul class="space-y-4 text-sm">
+                                    <li class="flex items-center justify-between">
+                                        <span class="text-gray-600">ID Akun</span>
+                                        <span class="text-ecocare-dark font-semibold">#<?php echo htmlspecialchars($user['id']); ?></span>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span class="text-gray-600">Dibuat</span>
+                                        <span class="text-ecocare-dark font-medium text-xs"><?php echo date('d M Y', strtotime($user['created_at'])); ?></span>
+                                    </li>
+                                    <li class="flex items-center justify-between">
+                                        <span class="text-gray-600">Diperbarui</span>
+                                        <span class="text-ecocare-dark font-medium text-xs"><?php echo date('d M Y', strtotime($user['updated_at'])); ?></span>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                        <h3 class="text-xl font-bold text-ecocare-dark mb-2"><?php echo htmlspecialchars($user['name']); ?></h3>
-                        <p class="text-gray-500 text-sm mb-4 flex items-center justify-center gap-2">
-                            <i class="fas fa-envelope"></i>
-                            <?php echo htmlspecialchars($user['email']); ?>
-                        </p>
-                        <span class="inline-block px-4 py-1.5 bg-ecocare-primary/10 text-ecocare-primary rounded-full text-sm font-semibold">
-                            <i class="fas fa-shield-alt mr-1"></i> Administrator
-                        </span>
                     </div>
 
-                    <div class="mt-8 pt-6 border-t border-gray-100">
-                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Informasi Akun</h4>
-                        <ul class="space-y-4 text-sm">
-                            <li class="flex items-center justify-between">
-                                <span class="text-gray-600">ID Akun</span>
-                                <span class="text-ecocare-dark font-semibold">#<?php echo htmlspecialchars($user['id']); ?></span>
-                            </li>
-                            <li class="flex items-center justify-between">
-                                <span class="text-gray-600">Dibuat</span>
-                                <span class="text-ecocare-dark font-medium text-xs"><?php echo date('d M Y', strtotime($user['created_at'])); ?></span>
-                            </li>
-                            <li class="flex items-center justify-between">
-                                <span class="text-gray-600">Diperbarui</span>
-                                <span class="text-ecocare-dark font-medium text-xs"><?php echo date('d M Y', strtotime($user['updated_at'])); ?></span>
-                            </li>
-                        </ul>
+                    <!-- Forms -->
+                    <div class="lg:col-span-2 space-y-8">
+                        <!-- Ubah Profil Form -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+                            <h2 class="text-xl font-bold text-ecocare-dark mb-6 flex items-center gap-3">
+                                <i class="fas fa-user text-ecocare-primary text-lg"></i> Ubah Profil
+                            </h2>
+                            <form method="POST" enctype="multipart/form-data">
+                                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Lengkap</label>
+                                        <input type="text" name="name" required value="<?php echo htmlspecialchars($user['name']); ?>" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                                        <input type="email" name="email" required value="<?php echo htmlspecialchars($user['email']); ?>" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
+                                    </div>
+                                </div>
+                                <div class="mb-6">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Foto Profil</label>
+                                    <input type="file" name="profile_pic" accept="image/jpeg,image/png" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-ecocare-primary file:text-white hover:file:bg-ecocare-green-dark transition cursor-pointer">
+                                    <p class="text-xs text-gray-500 mt-2">File JPG/PNG max 2MB</p>
+                                </div>
+                                <button type="submit" name="update_profile" class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white px-8 py-3.5 rounded-xl font-semibold hover:shadow-lg transition">
+                                    Simpan Perubahan Profil
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Ubah Password Form -->
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+                            <h2 class="text-xl font-bold text-ecocare-dark mb-6 flex items-center gap-3">
+                                <i class="fas fa-lock text-ecocare-primary text-lg"></i> Ubah Password
+                            </h2>
+                            <form method="POST">
+                                <div class="mb-6">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Password Lama</label>
+                                    <input type="password" name="current_password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
+                                </div>
+                                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Password Baru</label>
+                                        <input type="password" name="new_password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Konfirmasi Password Baru</label>
+                                        <input type="password" name="confirm_password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
+                                    </div>
+                                </div>
+                                <button type="submit" name="update_password" class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white px-8 py-3.5 rounded-xl font-semibold hover:shadow-lg transition">
+                                    Ubah Password
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Forms -->
-            <div class="lg:col-span-2 space-y-8">
-                <!-- Ubah Profil Form -->
-                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-                    <h2 class="text-xl font-bold text-ecocare-dark mb-6 flex items-center gap-3">
-                        <i class="fas fa-user text-ecocare-primary text-lg"></i> Ubah Profil
-                    </h2>
-                    <form method="POST" enctype="multipart/form-data">
-                        <div class="grid md:grid-cols-2 gap-6 mb-6">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Nama Lengkap</label>
-                                <input type="text" name="name" required value="<?php echo htmlspecialchars($user['name']); ?>" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                                <input type="email" name="email" required value="<?php echo htmlspecialchars($user['email']); ?>" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
-                            </div>
-                        </div>
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Foto Profil</label>
-                            <input type="file" name="profile_pic" accept="image/jpeg,image/png" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-ecocare-primary file:text-white hover:file:bg-ecocare-dark transition cursor-pointer">
-                            <p class="text-xs text-gray-500 mt-2">File JPG/PNG max 2MB</p>
-                        </div>
-                        <button type="submit" name="update_profile" class="bg-ecocare-primary text-white px-8 py-3.5 rounded-xl font-semibold hover:bg-ecocare-dark transition shadow-md">
-                            Simpan Perubahan Profil
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Ubah Password Form -->
-                <div class="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-                    <h2 class="text-xl font-bold text-ecocare-dark mb-6 flex items-center gap-3">
-                        <i class="fas fa-lock text-ecocare-primary text-lg"></i> Ubah Password
-                    </h2>
-                    <form method="POST">
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Password Lama</label>
-                            <input type="password" name="current_password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
-                        </div>
-                        <div class="grid md:grid-cols-2 gap-6 mb-6">
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Password Baru</label>
-                                <input type="password" name="new_password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Konfirmasi Password Baru</label>
-                                <input type="password" name="confirm_password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition outline-none">
-                            </div>
-                        </div>
-                        <button type="submit" name="update_password" class="bg-ecocare-dark text-white px-8 py-3.5 rounded-xl font-semibold hover:bg-ecocare-primary transition shadow-md">
-                            Ubah Password
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
+        </main>
     </div>
-
-    <!-- Footer -->
-    <footer class="bg-ecocare-dark text-white py-10 mt-12">
-        <div class="max-w-6xl mx-auto px-6 lg:px-8 text-center">
-            <div class="flex items-center justify-center gap-3 mb-4">
-                <div class="w-10 h-10 bg-ecocare-primary rounded-xl flex items-center justify-center text-xl">
-                    <i class="fas fa-leaf"></i>
-                </div>
-                <span class="text-xl font-bold">EcoCare+</span>
-            </div>
-            <p class="text-gray-400 text-sm">© <?php echo date('Y'); ?> EcoCare+. All rights reserved.</p>
-        </div>
-    </footer>
 </body>
 </html>

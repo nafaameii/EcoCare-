@@ -2,6 +2,107 @@
 require 'config.php';
 require_admin();
 
+// Handle AJAX requests for monthly data
+if (isset($_GET['ajax']) && $_GET['ajax'] === 'monthly') {
+    header('Content-Type: application/json');
+    
+    $filter_year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
+    $filter_status = isset($_GET['status']) ? $_GET['status'] : 'all';
+    $filter_category = isset($_GET['category']) ? $_GET['category'] : 'all';
+    
+    // Build query for monthly reports with filters
+    $sql = "
+        SELECT DATE_FORMAT(created_at, '%m') as month_num, COUNT(*) as count 
+        FROM reports 
+        WHERE YEAR(created_at) = ?
+    ";
+    $params = [$filter_year];
+    
+    if ($filter_status !== 'all') {
+        $sql .= " AND status = ?";
+        $params[] = $filter_status;
+    }
+    
+    if ($filter_category !== 'all') {
+        $sql .= " AND category = ?";
+        $params[] = $filter_category;
+    }
+    
+    $sql .= " GROUP BY DATE_FORMAT(created_at, '%m') ORDER BY month_num";
+    
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $db_results = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        
+        // Define all 12 months in Indonesian
+        $month_names = [
+            '01' => 'Januari',
+            '02' => 'Februari',
+            '03' => 'Maret',
+            '04' => 'April',
+            '05' => 'Mei',
+            '06' => 'Juni',
+            '07' => 'Juli',
+            '08' => 'Agustus',
+            '09' => 'September',
+            '10' => 'Oktober',
+            '11' => 'November',
+            '12' => 'Desember'
+        ];
+        
+        // Prepare full month data
+        $final_labels = [];
+        $final_data = [];
+        
+        foreach ($month_names as $num => $name) {
+            $final_labels[] = $name;
+            $final_data[] = isset($db_results[$num]) ? (int)$db_results[$num] : 0;
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'labels' => $final_labels,
+            'data' => $final_data,
+            'filters' => [
+                'year' => $filter_year,
+                'status' => $filter_status,
+                'category' => $filter_category
+            ]
+        ]);
+    } catch (PDOException $e) {
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+    exit;
+}
+
+// Get filter inputs for initial page load
+$filter_year = isset($_GET['year']) ? (int)$_GET['year'] : date('Y');
+$filter_status = isset($_GET['status']) ? $_GET['status'] : 'all';
+$filter_category = isset($_GET['category']) ? $_GET['category'] : 'all';
+
+// Get available years for filter
+try {
+    $stmt = $pdo->query("SELECT DISTINCT YEAR(created_at) as year FROM reports ORDER BY year DESC");
+    $available_years = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    if (empty($available_years)) {
+        $available_years = [date('Y')];
+    }
+} catch(PDOException $e) {
+    $available_years = [date('Y')];
+}
+
+// Get available categories for filter
+try {
+    $stmt = $pdo->query("SELECT DISTINCT category FROM reports ORDER BY category");
+    $available_categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
+} catch(PDOException $e) {
+    $available_categories = [];
+}
+
 // Get statistics
 try {
     $stmt = $pdo->query("SELECT COUNT(*) as total FROM users");
@@ -21,16 +122,6 @@ try {
     // Get reports per category
     $stmt = $pdo->query("SELECT category, COUNT(*) as count FROM reports GROUP BY category");
     $reports_by_category = $stmt->fetchAll();
-    
-    // Get reports per month
-    $stmt = $pdo->query("
-        SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count 
-        FROM reports 
-        GROUP BY DATE_FORMAT(created_at, '%Y-%m') 
-        ORDER BY month 
-        LIMIT 12
-    ");
-    $reports_per_month = $stmt->fetchAll();
     
 } catch(PDOException $e) {
     die("Database error: " . $e->getMessage());
@@ -69,10 +160,21 @@ try {
     <style>
         * { font-family: 'Inter', sans-serif; }
         .sidebar { transition: all 0.3s ease; }
-        .sidebar-link { transition: all 0.2s ease; }
-        .sidebar-link:hover, .sidebar-link.active {
+        .sidebar-link { 
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #f0fdf4;
+        }
+        .sidebar-link.active {
             background: linear-gradient(135deg, #6FAF8F 0%, #3D8B6A 100%);
             color: white;
+        }
+        .sidebar-link:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+        .sidebar-icon {
+            transition: transform 0.2s ease;
         }
         .stat-card { transition: all 0.3s ease; }
         .stat-card:hover { transform: translateY(-5px); }
@@ -98,43 +200,43 @@ try {
                 <ul class="space-y-2">
                     <li>
                         <a href="admin_dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-tachometer-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-tachometer-alt w-5 text-green-600"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_reports.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-file-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-file-alt w-5 text-blue-600"></i>
                             <span>Kelola Laporan</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_users.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-users w-5"></i>
+                            <i class="sidebar-icon fas fa-users w-5 text-purple-600"></i>
                             <span>Kelola Pengguna</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_map.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-map-marked-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-map-marked-alt w-5 text-red-600"></i>
                             <span>Peta Monitoring</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_statistics.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-chart-bar w-5"></i>
+                            <i class="sidebar-icon fas fa-chart-bar w-5 text-orange-500"></i>
                             <span>Statistik</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_education.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-book w-5"></i>
+                            <i class="sidebar-icon fas fa-book w-5 text-teal-600"></i>
                             <span>Kelola Edukasi</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_actions.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-hands-helping w-5"></i>
+                            <i class="sidebar-icon fas fa-hands-helping w-5 text-amber-700"></i>
                             <span>Kelola Aksi Lingkungan</span>
                         </a>
                     </li>
@@ -260,124 +362,298 @@ try {
                 
                 <!-- Monthly Reports Chart -->
                 <div class="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
-                    <h3 class="text-lg font-bold text-ecocare-dark mb-6">Laporan per Bulan</h3>
-                    <canvas id="monthlyChart" height="100"></canvas>
+                    <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
+                        <h3 class="text-lg font-bold text-ecocare-dark">Laporan per Bulan</h3>
+                        
+                        <!-- Filters -->
+                        <form id="filterForm" class="flex items-center gap-3 flex-wrap">
+                            <select name="year" id="yearFilter" class="px-4 py-2 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary">
+                                <?php foreach($available_years as $year): ?>
+                                    <option value="<?php echo $year; ?>" <?php echo $year == $filter_year ? 'selected' : ''; ?>><?php echo $year; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            
+                            <select name="status" id="statusFilter" class="px-4 py-2 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary">
+                                <option value="all" <?php echo $filter_status === 'all' ? 'selected' : ''; ?>>Semua Status</option>
+                                <option value="Baru" <?php echo $filter_status === 'Baru' ? 'selected' : ''; ?>>Baru</option>
+                                <option value="Diproses" <?php echo $filter_status === 'Diproses' ? 'selected' : ''; ?>>Diproses</option>
+                                <option value="Selesai" <?php echo $filter_status === 'Selesai' ? 'selected' : ''; ?>>Selesai</option>
+                            </select>
+                            
+                            <?php if (!empty($available_categories)): ?>
+                                <select name="category" id="categoryFilter" class="px-4 py-2 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary">
+                                    <option value="all" <?php echo $filter_category === 'all' ? 'selected' : ''; ?>>Semua Kategori</option>
+                                    <?php foreach($available_categories as $cat): ?>
+                                        <option value="<?php echo htmlspecialchars($cat); ?>" <?php echo $filter_category === $cat ? 'selected' : ''; ?>><?php echo htmlspecialchars($cat); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
+                            
+                            <button type="submit" id="applyFilterBtn" class="px-4 py-2 bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white rounded-xl font-semibold hover:shadow-lg transition">
+                                <i class="fas fa-filter mr-2"></i> Terapkan
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div id="monthlyChartContainer">
+                        <div id="monthlyNoData" class="text-center py-12 text-gray-500 hidden">
+                            <i class="fas fa-chart-line text-5xl mb-4 opacity-30"></i>
+                            <p class="text-lg">Belum ada data laporan pada periode yang dipilih</p>
+                        </div>
+                        <canvas id="monthlyChart" height="100"></canvas>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
     
     <script>
+        let monthlyChart;
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Status Chart
-            const statusCtx = document.getElementById('statusChart').getContext('2d');
-            new Chart(statusCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Baru', 'Diproses', 'Selesai'],
-                    datasets: [{
-                        data: [<?php echo $reports_baru; ?>, <?php echo $reports_diproses; ?>, <?php echo $reports_selesai; ?>],
-                        backgroundColor: ['#ef4444', '#FFB86C', '#6FAF8F'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
+            const statusCtx = document.getElementById('statusChart')?.getContext('2d');
+            if (statusCtx) {
+                new Chart(statusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Baru', 'Diproses', 'Selesai'],
+                        datasets: [{
+                            data: [<?php echo $reports_baru; ?>, <?php echo $reports_diproses; ?>, <?php echo $reports_selesai; ?>],
+                            backgroundColor: ['#ef4444', '#FFB86C', '#6FAF8F'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
             
             // Category Chart
             const categoryLabels = <?php echo json_encode(array_column($reports_by_category, 'category')); ?>;
             const categoryData = <?php echo json_encode(array_column($reports_by_category, 'count')); ?>;
             const categoryColors = ['#6FAF8F', '#7DB7E8', '#FFB86C', '#A8D5BA'];
             
-            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-            new Chart(categoryCtx, {
-                type: 'bar',
-                data: {
-                    labels: categoryLabels,
-                    datasets: [{
-                        label: 'Jumlah Laporan',
-                        data: categoryData,
-                        backgroundColor: categoryColors.slice(0, categoryLabels.length),
-                        borderRadius: 8,
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
+            const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
+            if (categoryCtx && categoryLabels.length > 0) {
+                new Chart(categoryCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            label: 'Jumlah Laporan',
+                            data: categoryData,
+                            backgroundColor: categoryColors.slice(0, categoryLabels.length),
+                            borderRadius: 8,
+                            borderWidth: 0
+                        }]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: '#f0f0f0'
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
                             }
                         },
-                        x: {
-                            grid: {
-                                display: false
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    color: '#f0f0f0'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+            }
             
-            // Monthly Chart
-            const monthLabels = <?php echo json_encode(array_column($reports_per_month, 'month')); ?>;
-            const monthData = <?php echo json_encode(array_column($reports_per_month, 'count')); ?>;
+            // Initialize monthly chart
+            initializeMonthlyChart();
             
-            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-            new Chart(monthlyCtx, {
-                type: 'line',
-                data: {
-                    labels: monthLabels,
-                    datasets: [{
-                        label: 'Jumlah Laporan',
-                        data: monthData,
-                        fill: true,
-                        backgroundColor: 'rgba(111, 175, 143, 0.1)',
-                        borderColor: '#6FAF8F',
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointRadius: 5,
-                        pointBackgroundColor: '#6FAF8F',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: '#f0f0f0'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    }
-                }
+            // Handle filter form submission
+            document.getElementById('filterForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                updateMonthlyChart();
             });
         });
+        
+        async function initializeMonthlyChart() {
+            await updateMonthlyChart(true);
+        }
+        
+        async function updateMonthlyChart(initial = false) {
+            const year = document.getElementById('yearFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const categorySelect = document.getElementById('categoryFilter');
+            const category = categorySelect ? categorySelect.value : 'all';
+            
+            // Show loading state
+            const btn = document.getElementById('applyFilterBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Memuat...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`admin_statistics.php?ajax=monthly&year=${encodeURIComponent(year)}&status=${encodeURIComponent(status)}&category=${encodeURIComponent(category)}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const totalData = result.data.reduce((a, b) => a + b, 0);
+                    const noDataDiv = document.getElementById('monthlyNoData');
+                    const chartCanvas = document.getElementById('monthlyChart');
+                    
+                    if (totalData === 0) {
+                        noDataDiv.classList.remove('hidden');
+                        chartCanvas.classList.add('hidden');
+                        if (monthlyChart) {
+                            monthlyChart.destroy();
+                            monthlyChart = null;
+                        }
+                    } else {
+                        noDataDiv.classList.add('hidden');
+                        chartCanvas.classList.remove('hidden');
+                        renderMonthlyChart(result.labels, result.data, result.filters);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading monthly data:', error);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+        
+        function renderMonthlyChart(labels, data, filters) {
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            
+            // Prepare tooltip label
+            const getFilterLabel = () => {
+                let parts = [];
+                if (filters.status !== 'all') parts.push(`Status: ${filters.status}`);
+                if (filters.category !== 'all') parts.push(`Kategori: ${filters.category}`);
+                return parts.length > 0 ? parts.join(' • ') : null;
+            };
+            
+            const chartData = {
+                labels: labels,
+                datasets: [{
+                    label: 'Jumlah Laporan',
+                    data: data,
+                    fill: false,
+                    backgroundColor: '#6FAF8F',
+                    borderColor: '#6FAF8F',
+                    borderWidth: 4,
+                    tension: 0.35,
+                    pointRadius: 7,
+                    pointBackgroundColor: '#3D8B6A',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 3,
+                    pointHoverRadius: 9,
+                    pointHoverBackgroundColor: '#6FAF8F',
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 4
+                }]
+            };
+            
+            const chartOptions = {
+                responsive: true,
+                animation: {
+                    duration: 750,
+                    easing: 'easeInOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: '#2D3748',
+                        titleFont: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 14
+                        },
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            title: function(context) {
+                                return `${context[0].label} ${filters.year}`;
+                            },
+                            label: function(context) {
+                                return `Jumlah Laporan: ${context.formattedValue}`;
+                            },
+                            afterLabel: function(context) {
+                                const label = getFilterLabel();
+                                if (label) {
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#f0f0f0',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            color: '#475569',
+                            font: {
+                                size: 13
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Jumlah Laporan',
+                            color: '#2D3748',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#475569',
+                            font: {
+                                size: 13
+                            }
+                        }
+                    }
+                }
+            };
+            
+            if (monthlyChart) {
+                monthlyChart.data = chartData;
+                monthlyChart.options = chartOptions;
+                monthlyChart.update('default');
+            } else {
+                monthlyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: chartOptions
+                });
+            }
+        }
     </script>
 </body>
 </html>

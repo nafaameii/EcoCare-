@@ -129,10 +129,21 @@ try {
     <style>
         * { font-family: 'Inter', sans-serif; }
         .sidebar { transition: all 0.3s ease; }
-        .sidebar-link { transition: all 0.2s ease; }
-        .sidebar-link:hover, .sidebar-link.active {
+        .sidebar-link { 
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #f0fdf4;
+        }
+        .sidebar-link.active {
             background: linear-gradient(135deg, #6FAF8F 0%, #3D8B6A 100%);
             color: white;
+        }
+        .sidebar-link:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+        .sidebar-icon {
+            transition: transform 0.2s ease;
         }
     </style>
 </head>
@@ -156,43 +167,43 @@ try {
                 <ul class="space-y-2">
                     <li>
                         <a href="admin_dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-tachometer-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-tachometer-alt w-5 text-green-600"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_reports.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-file-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-file-alt w-5 text-blue-600"></i>
                             <span>Kelola Laporan</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_users.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-users w-5"></i>
+                            <i class="sidebar-icon fas fa-users w-5 text-purple-600"></i>
                             <span>Kelola Pengguna</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_map.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-map-marked-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-map-marked-alt w-5 text-red-600"></i>
                             <span>Peta Monitoring</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_statistics.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-chart-bar w-5"></i>
+                            <i class="sidebar-icon fas fa-chart-bar w-5 text-orange-500"></i>
                             <span>Statistik</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_education.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-book w-5"></i>
+                            <i class="sidebar-icon fas fa-book w-5 text-teal-600"></i>
                             <span>Kelola Edukasi</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_actions.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-hands-helping w-5"></i>
+                            <i class="sidebar-icon fas fa-hands-helping w-5 text-amber-700"></i>
                             <span>Kelola Aksi Lingkungan</span>
                         </a>
                     </li>
@@ -363,11 +374,19 @@ try {
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
+                        <div class="md:col-span-1">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Lokasi</label>
-                            <input type="text" name="location" id="actLocationInput" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition" placeholder="Masukkan lokasi aksi">
+                            <input type="text" name="location" id="actLocationInput" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition mb-3" placeholder="Masukkan lokasi aksi">
+                            
+                            <button type="button" id="useCurrentLocationBtn" class="w-full px-4 py-3 bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-70">
+                                <i class="fas fa-map-marker-alt"></i> 
+                                <span id="locationBtnText">📍 Gunakan Lokasi Saat Ini</span>
+                            </button>
+                            
+                            <p id="locationStatus" class="text-sm mt-3 flex items-center gap-2"></p>
                         </div>
-                        <div>
+                        
+                        <div class="md:col-span-1">
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal & Waktu</label>
                             <input type="datetime-local" name="date_time" id="actDateTimeInput" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition">
                         </div>
@@ -407,6 +426,106 @@ try {
     </form>
     
     <script>
+        // Geolocation functionality
+        document.getElementById('useCurrentLocationBtn')?.addEventListener('click', async function() {
+            const locationStatus = document.getElementById('locationStatus');
+            const locationInput = document.getElementById('actLocationInput');
+            const locationBtn = this;
+            const locationBtnText = document.getElementById('locationBtnText');
+            
+            if (!navigator.geolocation) {
+                locationStatus.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> Browser tidak mendukung geolocation';
+                locationStatus.className = 'text-sm text-red-600 mt-3 flex items-center gap-2';
+                return;
+            }
+            
+            // Set loading state
+            locationBtn.disabled = true;
+            locationBtn.classList.remove('from-ecocare-primary', 'to-ecocare-green-dark');
+            locationBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+            locationBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari lokasi...';
+            
+            locationStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mencari lokasi saat ini...';
+            locationStatus.className = 'text-sm text-gray-500 mt-3 flex items-center gap-2';
+            
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    
+                    // Try to get address using reverse geocoding with OpenStreetMap
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+                        const data = await response.json();
+                        
+                        if (data.display_name) {
+                            locationInput.value = data.display_name;
+                        } else {
+                            // If reverse geocoding fails, just use coordinates
+                            locationInput.value = `Lat: ${latitude.toFixed(6)}, Lon: ${longitude.toFixed(6)}`;
+                        }
+                        
+                        // Success state
+                        locationBtn.disabled = false;
+                        locationBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                        locationBtn.classList.add('from-green-600', 'to-green-700');
+                        locationBtnText.innerHTML = '<i class="fas fa-check-circle"></i> Lokasi berhasil ditemukan';
+                        
+                        locationStatus.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> Lokasi berhasil ditemukan!';
+                        locationStatus.className = 'text-sm text-green-600 mt-3 flex items-center gap-2';
+                        
+                        // Reset button after 3 seconds
+                        setTimeout(() => {
+                            locationBtn.classList.remove('from-green-600', 'to-green-700');
+                            locationBtn.classList.add('from-ecocare-primary', 'to-ecocare-green-dark');
+                            locationBtnText.innerHTML = '📍 Gunakan Lokasi Saat Ini';
+                        }, 3000);
+                    } catch (error) {
+                        // Fallback to coordinates if reverse geocoding fails
+                        locationInput.value = `Lat: ${latitude.toFixed(6)}, Lon: ${longitude.toFixed(6)}`;
+                        
+                        locationBtn.disabled = false;
+                        locationBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                        locationBtn.classList.add('from-ecocare-primary', 'to-ecocare-green-dark');
+                        locationBtnText.innerHTML = '📍 Gunakan Lokasi Saat Ini';
+                        
+                        locationStatus.innerHTML = '<i class="fas fa-info-circle text-yellow-500"></i> Lokasi berhasil ditemukan (menampilkan koordinat)';
+                        locationStatus.className = 'text-sm text-yellow-600 mt-3 flex items-center gap-2';
+                    }
+                },
+                (error) => {
+                    let errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Izin lokasi ditolak. Silakan izinkan akses lokasi atau masukkan lokasi secara manual';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Informasi lokasi tidak tersedia';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Waktu permintaan lokasi habis';
+                            break;
+                        default:
+                            errorMessage = 'Terjadi kesalahan saat mendapatkan lokasi';
+                            break;
+                    }
+                    
+                    locationBtn.disabled = false;
+                    locationBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                    locationBtn.classList.add('from-ecocare-primary', 'to-ecocare-green-dark');
+                    locationBtnText.innerHTML = '📍 Gunakan Lokasi Saat Ini';
+                    
+                    locationStatus.innerHTML = '<i class="fas fa-exclamation-circle text-red-500"></i> ' + errorMessage;
+                    locationStatus.className = 'text-sm text-red-600 mt-3 flex items-center gap-2';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        });
+        
         function openAddModal() {
             document.getElementById('actModalTitle').textContent = 'Tambah Aksi Lingkungan';
             document.getElementById('actActionInput').value = 'add';
@@ -417,6 +536,7 @@ try {
             document.getElementById('actDateTimeInput').value = '';
             document.getElementById('actStatusInput').value = 'upcoming';
             document.getElementById('actCurrentImageInput').value = '';
+            document.getElementById('locationStatus').textContent = '';
             document.getElementById('actCurrentImagePreview').classList.add('hidden');
             document.getElementById('actModal').classList.remove('hidden');
             document.getElementById('actModal').classList.add('flex');
@@ -432,6 +552,7 @@ try {
             document.getElementById('actDateTimeInput').value = act.date_time || '';
             document.getElementById('actStatusInput').value = act.status;
             document.getElementById('actCurrentImageInput').value = act.image_path || '';
+            document.getElementById('locationStatus').textContent = '';
             
             if (act.image_path) {
                 document.getElementById('actCurrentImage').src = act.image_path;

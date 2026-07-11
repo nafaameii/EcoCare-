@@ -8,6 +8,8 @@ if (!$report_id) {
     exit;
 }
 
+$isAdmin = $_SESSION['role'] === 'admin';
+
 try {
     $stmt = $pdo->prepare("
         SELECT r.*, u.name as reporter_name
@@ -23,10 +25,13 @@ try {
         exit;
     }
 
-    // Check if community exists and user is a member
-    $memberStmt = $pdo->prepare("SELECT COUNT(*) FROM community_members WHERE report_id = ? AND user_id = ?");
-    $memberStmt->execute([$report_id, $_SESSION['user_id']]);
-    $is_member = $memberStmt->fetchColumn() > 0;
+    // Check if community exists and user is a member (only for non-admins)
+    $is_member = false;
+    if (!$isAdmin) {
+        $memberStmt = $pdo->prepare("SELECT COUNT(*) FROM community_members WHERE report_id = ? AND user_id = ?");
+        $memberStmt->execute([$report_id, $_SESSION['user_id']]);
+        $is_member = $memberStmt->fetchColumn() > 0;
+    }
 
     $totalMembersStmt = $pdo->prepare("SELECT COUNT(*) FROM community_members WHERE report_id = ?");
     $totalMembersStmt->execute([$report_id]);
@@ -133,18 +138,57 @@ try {
                         <i class="fas fa-hands-helping"></i>
                         Masuk ke Komunitas Aksi
                     </a>
-                    <?php if (!$is_member): ?>
-                        <button id="joinBtn" class="inline-flex items-center gap-2 bg-white border-2 border-ecocare-primary text-ecocare-primary px-8 py-3 rounded-xl font-semibold hover:bg-ecocare-primary hover:text-white transition-all">
-                            <i class="fas fa-user-plus"></i>
-                            Gabung Komunitas
-                        </button>
+                    <?php if (!$isAdmin): ?>
+                        <?php if (!$is_member): ?>
+                            <button id="joinBtn" class="inline-flex items-center gap-2 bg-white border-2 border-ecocare-primary text-ecocare-primary px-8 py-3 rounded-xl font-semibold hover:bg-ecocare-primary hover:text-white transition-all">
+                                <i class="fas fa-user-plus"></i>
+                                Gabung Komunitas
+                            </button>
+                        <?php else: ?>
+                            <span class="inline-flex items-center gap-2 bg-green-100 text-green-700 px-8 py-3 rounded-xl font-semibold">
+                                <i class="fas fa-check-circle"></i>
+                                Anda Sudah Bergabung
+                            </span>
+                        <?php endif; ?>
                     <?php else: ?>
-                        <span class="inline-flex items-center gap-2 bg-green-100 text-green-700 px-8 py-3 rounded-xl font-semibold">
-                            <i class="fas fa-check-circle"></i>
-                            Anda Sudah Bergabung
-                        </span>
+                        <button id="updateReportStatusBtn" class="inline-flex items-center gap-2 bg-white border-2 border-orange-500 text-orange-600 px-8 py-3 rounded-xl font-semibold hover:bg-orange-50 hover:border-orange-600 transition-all">
+                            <i class="fas fa-edit"></i>
+                            Ubah Status Laporan
+                        </button>
                     <?php endif; ?>
                 </div>
+
+                <!-- Admin Report Status Update Modal -->
+                <?php if ($isAdmin): ?>
+                    <div id="updateReportStatusModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-[9999]">
+                        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
+                            <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                                <h3 class="text-xl font-bold text-ecocare-dark">Ubah Status Laporan</h3>
+                                <button onclick="document.getElementById('updateReportStatusModal').classList.add('hidden'); document.getElementById('updateReportStatusModal').classList.remove('flex');" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="p-6">
+                                <form id="updateReportStatusForm" class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Status Baru</label>
+                                        <select id="newReportStatus" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                            <option value="Baru" <?= $report['status'] === 'Baru' ? 'selected' : '' ?>>Baru</option>
+                                            <option value="Diproses" <?= $report['status'] === 'Diproses' ? 'selected' : '' ?>>Diproses</option>
+                                            <option value="Komunitas Terbentuk" <?= $report['status'] === 'Komunitas Terbentuk' ? 'selected' : '' ?>>Komunitas Terbentuk</option>
+                                            <option value="Aksi Berjalan" <?= $report['status'] === 'Aksi Berjalan' ? 'selected' : '' ?>>Aksi Berjalan</option>
+                                            <option value="Selesai" <?= $report['status'] === 'Selesai' ? 'selected' : '' ?>>Selesai</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition">
+                                        <i class="fas fa-save mr-2"></i>
+                                        Simpan Perubahan
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <!-- Member Stats -->
                 <div class="mt-6 pt-6 border-t border-gray-100">
@@ -165,9 +209,10 @@ try {
     <script>
         const reportId = <?= $report_id ?>;
         const isMember = <?= $is_member ? 'true' : 'false' ?>;
+        const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
 
         document.getElementById('joinBtn')?.addEventListener('click', async () => {
-            if (isMember) return;
+            if (isMember || isAdmin) return;
             const formData = new FormData();
             formData.append('report_id', reportId);
             const res = await fetch('api/community.php?action=join', { method: 'POST', body: formData });
@@ -177,6 +222,37 @@ try {
                 location.reload();
             } else {
                 alert(data.message);
+            }
+        });
+
+        // Admin report status update
+        document.getElementById('updateReportStatusBtn')?.addEventListener('click', () => {
+            const modal = document.getElementById('updateReportStatusModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        });
+
+        document.getElementById('updateReportStatusForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newStatus = document.getElementById('newReportStatus').value;
+            const formData = new FormData();
+            formData.append('report_id', reportId);
+            formData.append('status', newStatus);
+            const res = await fetch('api/community.php?action=update_report_status', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert(data.message);
+            }
+        });
+
+        // Close modal on outside click
+        document.getElementById('updateReportStatusModal')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('updateReportStatusModal')) {
+                document.getElementById('updateReportStatusModal').classList.add('hidden');
+                document.getElementById('updateReportStatusModal').classList.remove('flex');
             }
         });
     </script>

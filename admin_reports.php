@@ -63,21 +63,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get all reports with admin names
+// Get filter from URL
+$filter_status = isset($_GET['status']) ? $_GET['status'] : 'all';
+
+// Build query with filter if needed
 try {
-    $stmt = $pdo->query("
-        SELECT 
-            r.*, 
-            u.name as user_name, 
-            u.email as user_email,
-            p.name as processed_by_name,
-            c.name as completed_by_name
-        FROM reports r 
-        LEFT JOIN users u ON r.user_id = u.id 
-        LEFT JOIN users p ON r.processed_by = p.id
-        LEFT JOIN users c ON r.completed_by = c.id
-        ORDER BY r.created_at DESC
-    ");
+    if ($filter_status === 'all') {
+        $stmt = $pdo->query("
+            SELECT 
+                r.*, 
+                u.name as user_name, 
+                u.email as user_email,
+                p.name as processed_by_name,
+                c.name as completed_by_name
+            FROM reports r 
+            LEFT JOIN users u ON r.user_id = u.id 
+            LEFT JOIN users p ON r.processed_by = p.id
+            LEFT JOIN users c ON r.completed_by = c.id
+            ORDER BY r.created_at DESC
+        ");
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT 
+                r.*, 
+                u.name as user_name, 
+                u.email as user_email,
+                p.name as processed_by_name,
+                c.name as completed_by_name
+            FROM reports r 
+            LEFT JOIN users u ON r.user_id = u.id 
+            LEFT JOIN users p ON r.processed_by = p.id
+            LEFT JOIN users c ON r.completed_by = c.id
+            WHERE r.status = ?
+            ORDER BY r.created_at DESC
+        ");
+        $stmt->execute([$filter_status]);
+    }
     $reports = $stmt->fetchAll();
 } catch(PDOException $e) {
     die("Database error: " . $e->getMessage());
@@ -115,10 +136,21 @@ try {
     <style>
         * { font-family: 'Inter', sans-serif; }
         .sidebar { transition: all 0.3s ease; }
-        .sidebar-link { transition: all 0.2s ease; }
-        .sidebar-link:hover, .sidebar-link.active {
+        .sidebar-link { 
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #f0fdf4;
+        }
+        .sidebar-link.active {
             background: linear-gradient(135deg, #6FAF8F 0%, #3D8B6A 100%);
             color: white;
+        }
+        .sidebar-link:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+        .sidebar-icon {
+            transition: transform 0.2s ease;
         }
     </style>
 </head>
@@ -142,43 +174,43 @@ try {
                 <ul class="space-y-2">
                     <li>
                         <a href="admin_dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-tachometer-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-tachometer-alt w-5 text-green-600"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_reports.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-file-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-file-alt w-5 text-blue-600"></i>
                             <span>Kelola Laporan</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_users.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-users w-5"></i>
+                            <i class="sidebar-icon fas fa-users w-5 text-purple-600"></i>
                             <span>Kelola Pengguna</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_map.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-map-marked-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-map-marked-alt w-5 text-red-600"></i>
                             <span>Peta Monitoring</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_statistics.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-chart-bar w-5"></i>
+                            <i class="sidebar-icon fas fa-chart-bar w-5 text-orange-500"></i>
                             <span>Statistik</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_education.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-book w-5"></i>
+                            <i class="sidebar-icon fas fa-book w-5 text-teal-600"></i>
                             <span>Kelola Edukasi</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_actions.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-hands-helping w-5"></i>
+                            <i class="sidebar-icon fas fa-hands-helping w-5 text-amber-700"></i>
                             <span>Kelola Aksi Lingkungan</span>
                         </a>
                     </li>
@@ -232,9 +264,20 @@ try {
                 <?php endif; ?>
 
                 <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
                         <h3 class="text-lg font-bold text-ecocare-dark">Daftar Laporan</h3>
-                        <span class="text-sm text-gray-500"><?php echo count($reports); ?> laporan ditemukan</span>
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm text-gray-500"><?php echo count($reports); ?> laporan ditemukan</span>
+                            <form method="GET" action="admin_reports.php" class="flex items-center gap-2">
+                                <select name="status" id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary text-sm bg-gray-50">
+                                    <option value="all" <?php echo $filter_status === 'all' ? 'selected' : ''; ?>>Semua Status</option>
+                                    <option value="Baru" <?php echo $filter_status === 'Baru' ? 'selected' : ''; ?>>Baru</option>
+                                    <option value="Diproses" <?php echo $filter_status === 'Diproses' ? 'selected' : ''; ?>>Diproses</option>
+                                    <option value="Selesai" <?php echo $filter_status === 'Selesai' ? 'selected' : ''; ?>>Selesai</option>
+                                </select>
+                                <button type="submit" class="px-4 py-2 bg-ecocare-primary text-white rounded-xl font-semibold hover:bg-ecocare-green-dark transition">Filter</button>
+                            </form>
+                        </div>
                     </div>
 
                     <?php if (empty($reports)): ?>

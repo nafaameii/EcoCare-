@@ -32,7 +32,17 @@ try {
     }
 
     switch ($action) {
+        // Join/leave community
         case 'join':
+            // Check if user is admin - block
+            $checkRole = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $checkRole->execute([$user_id]);
+            $role = $checkRole->fetchColumn();
+            if ($role === 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Admin tidak dapat bergabung ke komunitas']);
+                exit;
+            }
+
             $report_id = intval($_POST['report_id'] ?? 0);
             if (!$report_id) {
                 echo json_encode(['success' => false, 'message' => 'ID laporan tidak valid']);
@@ -57,6 +67,15 @@ try {
             break;
         
         case 'leave':
+            // Check if user is admin - block
+            $checkRole = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $checkRole->execute([$user_id]);
+            $role = $checkRole->fetchColumn();
+            if ($role === 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Admin tidak dapat keluar dari komunitas']);
+                exit;
+            }
+
             $report_id = intval($_POST['report_id'] ?? 0);
             if (!$report_id) {
                 echo json_encode(['success' => false, 'message' => 'ID laporan tidak valid']);
@@ -219,6 +238,79 @@ try {
                 ->fetchAll();
             
             echo json_encode(['success' => true, 'contributions' => $contribs]);
+            break;
+
+        // Admin endpoints
+        case 'update_action_status':
+            // Check admin role
+            $checkRole = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $checkRole->execute([$user_id]);
+            $role = $checkRole->fetchColumn();
+            if ($role !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Hanya admin yang dapat mengubah status aksi']);
+                exit;
+            }
+
+            $actionId = intval($_POST['action_id'] ?? 0);
+            $newStatus = $_POST['status'] ?? '';
+            if (!in_array($newStatus, ['planned', 'active', 'completed', 'cancelled'])) {
+                echo json_encode(['success' => false, 'message' => 'Status tidak valid']);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("UPDATE community_actions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$newStatus, $actionId]);
+
+            // Update report status if needed
+            if ($newStatus === 'active') {
+                $stmt = $pdo->prepare("UPDATE reports SET status = 'Aksi Berjalan' WHERE id = (SELECT report_id FROM community_actions WHERE id = ?)");
+                $stmt->execute([$actionId]);
+            } elseif ($newStatus === 'completed') {
+                $stmt = $pdo->prepare("UPDATE reports SET status = 'Selesai' WHERE id = (SELECT report_id FROM community_actions WHERE id = ?)");
+                $stmt->execute([$actionId]);
+            }
+
+            echo json_encode(['success' => true, 'message' => 'Status aksi berhasil diperbarui']);
+            break;
+
+        case 'update_action_progress':
+            $checkRole = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $checkRole->execute([$user_id]);
+            $role = $checkRole->fetchColumn();
+            if ($role !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Hanya admin yang dapat mengubah progress aksi']);
+                exit;
+            }
+
+            $actionId = intval($_POST['action_id'] ?? 0);
+            $progress = intval($_POST['progress'] ?? 0);
+
+            $stmt = $pdo->prepare("UPDATE community_actions SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$progress, $actionId]);
+
+            echo json_encode(['success' => true, 'message' => 'Progress aksi berhasil diperbarui']);
+            break;
+
+        case 'update_report_status':
+            $checkRole = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $checkRole->execute([$user_id]);
+            $role = $checkRole->fetchColumn();
+            if ($role !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Hanya admin yang dapat mengubah status laporan']);
+                exit;
+            }
+
+            $reportId = intval($_POST['report_id'] ?? 0);
+            $newStatus = $_POST['status'] ?? '';
+            if (!in_array($newStatus, ['Baru', 'Diproses', 'Komunitas Terbentuk', 'Aksi Berjalan', 'Selesai'])) {
+                echo json_encode(['success' => false, 'message' => 'Status tidak valid']);
+                exit;
+            }
+
+            $stmt = $pdo->prepare("UPDATE reports SET status = ? WHERE id = ?");
+            $stmt->execute([$newStatus, $reportId]);
+
+            echo json_encode(['success' => true, 'message' => 'Status laporan berhasil diperbarui']);
             break;
         
         default:

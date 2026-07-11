@@ -114,10 +114,21 @@ try {
     <style>
         * { font-family: 'Inter', sans-serif; }
         .sidebar { transition: all 0.3s ease; }
-        .sidebar-link { transition: all 0.2s ease; }
-        .sidebar-link:hover, .sidebar-link.active {
+        .sidebar-link { 
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #f0fdf4;
+        }
+        .sidebar-link.active {
             background: linear-gradient(135deg, #6FAF8F 0%, #3D8B6A 100%);
             color: white;
+        }
+        .sidebar-link:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+        .sidebar-icon {
+            transition: transform 0.2s ease;
         }
     </style>
 </head>
@@ -141,43 +152,43 @@ try {
                 <ul class="space-y-2">
                     <li>
                         <a href="admin_dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-tachometer-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-tachometer-alt w-5 text-green-600"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_reports.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-file-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-file-alt w-5 text-blue-600"></i>
                             <span>Kelola Laporan</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_users.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-users w-5"></i>
+                            <i class="sidebar-icon fas fa-users w-5 text-purple-600"></i>
                             <span>Kelola Pengguna</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_map.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-map-marked-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-map-marked-alt w-5 text-red-600"></i>
                             <span>Peta Monitoring</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_statistics.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-chart-bar w-5"></i>
+                            <i class="sidebar-icon fas fa-chart-bar w-5 text-orange-500"></i>
                             <span>Statistik</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_education.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-book w-5"></i>
+                            <i class="sidebar-icon fas fa-book w-5 text-teal-600"></i>
                             <span>Kelola Edukasi</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_actions.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-hands-helping w-5"></i>
+                            <i class="sidebar-icon fas fa-hands-helping w-5 text-amber-700"></i>
                             <span>Kelola Aksi Lingkungan</span>
                         </a>
                     </li>
