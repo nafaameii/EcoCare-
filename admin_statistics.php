@@ -430,17 +430,11 @@ try {
                         // Navigate to admin_users.php
                         window.location.href = 'admin_users.php';
                     } else if (filterType === 'all') {
-                        // Reset filters and update chart
-                        document.getElementById('statusFilter').value = 'all';
-                        const categoryFilter = document.getElementById('categoryFilter');
-                        if (categoryFilter) categoryFilter.value = 'all';
-                        updateMonthlyChart();
+                        // Navigate to admin_reports.php with no filter
+                        window.location.href = 'admin_reports.php';
                     } else if (['Baru', 'Diproses', 'Selesai'].includes(filterType)) {
-                        // Set status filter and update chart
-                        document.getElementById('statusFilter').value = filterType;
-                        const categoryFilter = document.getElementById('categoryFilter');
-                        if (categoryFilter) categoryFilter.value = 'all';
-                        updateMonthlyChart();
+                        // Navigate to admin_reports.php with status filter
+                        window.location.href = `admin_reports.php?status=${encodeURIComponent(filterType)}`;
                     }
                 });
             });
