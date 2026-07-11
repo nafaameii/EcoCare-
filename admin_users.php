@@ -151,15 +151,36 @@ try {
     <style>
         * { font-family: 'Inter', sans-serif; }
         .sidebar { transition: all 0.3s ease; }
-        .sidebar-link { transition: all 0.2s ease; }
-        .sidebar-link:hover, .sidebar-link.active {
+        .sidebar-link { 
+            transition: all 0.2s ease;
+        }
+        .sidebar-link:hover {
+            background: #f0fdf4;
+        }
+        .sidebar-link.active {
             background: linear-gradient(135deg, #6FAF8F 0%, #3D8B6A 100%);
             color: white;
         }
+        .sidebar-link:hover .sidebar-icon {
+            transform: scale(1.1);
+        }
+        .sidebar-icon {
+            transition: transform 0.2s ease;
+        }
         .user-card { transition: all 0.3s ease; }
         .user-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
-        .stat-card { transition: all 0.3s ease; }
-        .stat-card:hover { transform: translateY(-3px); }
+        .stat-card { 
+            transition: all 0.3s ease; 
+            cursor: pointer;
+        }
+        .stat-card:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+        }
+        .stat-card:active {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -182,43 +203,43 @@ try {
                 <ul class="space-y-2">
                     <li>
                         <a href="admin_dashboard.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-tachometer-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-tachometer-alt w-5 text-green-600"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_reports.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-file-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-file-alt w-5 text-blue-600"></i>
                             <span>Kelola Laporan</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_users.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-users w-5"></i>
+                            <i class="sidebar-icon fas fa-users w-5 text-purple-600"></i>
                             <span>Kelola Pengguna</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_map.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-map-marked-alt w-5"></i>
+                            <i class="sidebar-icon fas fa-map-marked-alt w-5 text-red-600"></i>
                             <span>Peta Monitoring</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_statistics.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-chart-bar w-5"></i>
+                            <i class="sidebar-icon fas fa-chart-bar w-5 text-orange-500"></i>
                             <span>Statistik</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_education.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-book w-5"></i>
+                            <i class="sidebar-icon fas fa-book w-5 text-teal-600"></i>
                             <span>Kelola Edukasi</span>
                         </a>
                     </li>
                     <li>
                         <a href="admin_actions.php" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
-                            <i class="fas fa-hands-helping w-5"></i>
+                            <i class="sidebar-icon fas fa-hands-helping w-5 text-amber-700"></i>
                             <span>Kelola Aksi Lingkungan</span>
                         </a>
                     </li>
@@ -273,7 +294,7 @@ try {
 
                 <!-- Statistics Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="all">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-users"></i>
@@ -285,7 +306,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="admin">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-crown"></i>
@@ -297,7 +318,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="active">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-check-circle"></i>
@@ -309,7 +330,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="new">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-orange-400 to-orange-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-user-plus"></i>
@@ -380,7 +401,7 @@ try {
                                     'ditangguhkan' => 'bg-orange-100 text-orange-700'
                                 ][$userStatus];
                                 ?>
-                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>">
+                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>" data-created-month="<?php echo date('Y-m', strtotime($user['created_at'])); ?>">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md overflow-hidden">
                                             <?php if (isset($user['profile_pic']) && $user['profile_pic'] && file_exists($user['profile_pic'])): ?>
@@ -443,7 +464,7 @@ try {
                                     'ditangguhkan' => 'bg-orange-100 text-orange-700'
                                 ][$userStatus];
                                 ?>
-                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>">
+                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>" data-created-month="<?php echo date('Y-m', strtotime($user['created_at'])); ?>">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md overflow-hidden">
                                             <?php if (isset($user['profile_pic']) && $user['profile_pic'] && file_exists($user['profile_pic'])): ?>
@@ -536,6 +557,10 @@ try {
     </form>
 
     <script>
+        // Global filter variable
+        let currentStatFilter = 'all';
+        const currentMonth = new Date().toISOString().slice(0, 7); // Format YYYY-MM
+
         // Filter tabs
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', function() {
@@ -547,6 +572,64 @@ try {
                 this.classList.remove('bg-white', 'text-gray-700', 'border', 'border-gray-200');
 
                 filterCards();
+            });
+        });
+
+        // Stat cards click
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const filterType = this.dataset.filter;
+                currentStatFilter = filterType;
+                
+                // Reset other filters first
+                document.getElementById('roleFilter').value = 'all';
+                document.getElementById('statusFilter').value = 'all';
+                document.getElementById('searchInput').value = '';
+                
+                // Handle each filter type
+                if (filterType === 'all') {
+                    // Activate "Semua Pengguna" tab
+                    document.querySelectorAll('.tab-btn').forEach(btn => {
+                        btn.classList.remove('bg-ecocare-primary', 'text-white', 'shadow-md');
+                        btn.classList.add('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                    });
+                    const allTab = document.querySelector('.tab-btn[data-tab="all"]');
+                    allTab.classList.add('bg-ecocare-primary', 'text-white', 'shadow-md');
+                    allTab.classList.remove('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                } else if (filterType === 'admin') {
+                    // Activate "Administrator" tab
+                    document.querySelectorAll('.tab-btn').forEach(btn => {
+                        btn.classList.remove('bg-ecocare-primary', 'text-white', 'shadow-md');
+                        btn.classList.add('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                    });
+                    const adminTab = document.querySelector('.tab-btn[data-tab="admin"]');
+                    adminTab.classList.add('bg-ecocare-primary', 'text-white', 'shadow-md');
+                    adminTab.classList.remove('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                } else if (filterType === 'active') {
+                    // Activate "Semua Pengguna" tab and set status filter to "aktif"
+                    document.querySelectorAll('.tab-btn').forEach(btn => {
+                        btn.classList.remove('bg-ecocare-primary', 'text-white', 'shadow-md');
+                        btn.classList.add('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                    });
+                    const allTab = document.querySelector('.tab-btn[data-tab="all"]');
+                    allTab.classList.add('bg-ecocare-primary', 'text-white', 'shadow-md');
+                    allTab.classList.remove('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                    document.getElementById('statusFilter').value = 'aktif';
+                } else if (filterType === 'new') {
+                    // Activate "Semua Pengguna" tab
+                    document.querySelectorAll('.tab-btn').forEach(btn => {
+                        btn.classList.remove('bg-ecocare-primary', 'text-white', 'shadow-md');
+                        btn.classList.add('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                    });
+                    const allTab = document.querySelector('.tab-btn[data-tab="all"]');
+                    allTab.classList.add('bg-ecocare-primary', 'text-white', 'shadow-md');
+                    allTab.classList.remove('bg-white', 'text-gray-700', 'border', 'border-gray-200');
+                }
+                
+                filterCards();
+                
+                // Scroll to the user section
+                document.getElementById('adminCards').scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
 
@@ -565,6 +648,7 @@ try {
                 const name = card.dataset.name;
                 const email = card.dataset.email;
                 const status = card.dataset.status;
+                const createdMonth = card.dataset.createdMonth;
                 const isAdmin = card.querySelector('.bg-purple-100') !== null;
 
                 let show = true;
@@ -586,6 +670,14 @@ try {
                 }
 
                 if (statusFilter !== 'all' && status !== statusFilter) {
+                    show = false;
+                }
+                
+                // Handle stat card filters
+                if (currentStatFilter === 'active' && status !== 'aktif') {
+                    show = false;
+                }
+                if (currentStatFilter === 'new' && createdMonth !== currentMonth) {
                     show = false;
                 }
 

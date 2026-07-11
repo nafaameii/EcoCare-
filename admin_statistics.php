@@ -176,8 +176,18 @@ try {
         .sidebar-icon {
             transition: transform 0.2s ease;
         }
-        .stat-card { transition: all 0.3s ease; }
-        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card { 
+            transition: all 0.3s ease; 
+            cursor: pointer;
+        }
+        .stat-card:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+        }
+        .stat-card:active {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -284,7 +294,7 @@ try {
             <div class="p-8">
                 <!-- Statistics Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="users">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-users"></i>
@@ -296,7 +306,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="all">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-file-alt"></i>
@@ -308,7 +318,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="Baru">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-red-400 to-red-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-exclamation-circle"></i>
@@ -320,7 +330,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="Diproses">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-ecocare-orange to-orange-500 rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-spinner"></i>
@@ -332,7 +342,7 @@ try {
                         </div>
                     </div>
                     
-                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+                    <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-filter="Selesai">
                         <div class="flex items-center gap-4">
                             <div class="w-14 h-14 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-xl flex items-center justify-center text-white text-2xl shadow-md">
                                 <i class="fas fa-check-circle"></i>
@@ -411,6 +421,29 @@ try {
         let monthlyChart;
         
         document.addEventListener('DOMContentLoaded', function() {
+            // Stat cards click
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const filterType = this.dataset.filter;
+                    
+                    if (filterType === 'users') {
+                        // Navigate to admin_users.php
+                        window.location.href = 'admin_users.php';
+                    } else if (filterType === 'all') {
+                        // Reset filters and update chart
+                        document.getElementById('statusFilter').value = 'all';
+                        const categoryFilter = document.getElementById('categoryFilter');
+                        if (categoryFilter) categoryFilter.value = 'all';
+                        updateMonthlyChart();
+                    } else if (['Baru', 'Diproses', 'Selesai'].includes(filterType)) {
+                        // Set status filter and update chart
+                        document.getElementById('statusFilter').value = filterType;
+                        const categoryFilter = document.getElementById('categoryFilter');
+                        if (categoryFilter) categoryFilter.value = 'all';
+                        updateMonthlyChart();
+                    }
+                });
+            });
             // Status Chart
             const statusCtx = document.getElementById('statusChart')?.getContext('2d');
             if (statusCtx) {
