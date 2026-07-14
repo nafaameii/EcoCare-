@@ -7,6 +7,32 @@ $user_name = $_SESSION['name'];
 $user_email = $_SESSION['email'];
 $user_profile_pic = isset($_SESSION['profile_pic']) ? $_SESSION['profile_pic'] : null;
 
+// Handle mark notifications as read
+if (isset($_GET['mark_read']) && $_GET['mark_read'] == 1) {
+    try {
+        $stmt = $pdo->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0");
+        $stmt->execute([$user_id]);
+    } catch (PDOException $e) {
+        // Ignore errors
+    }
+}
+
+// Get notifications
+$unread_count = 0;
+$notifications = [];
+try {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+    $stmt->execute([$user_id]);
+    $unread_count = $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 10");
+    $stmt->execute([$user_id]);
+    $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $unread_count = 0;
+    $notifications = [];
+}
+
 // Handle form submissions
 $success_message = '';
 $error_message = '';
@@ -256,10 +282,47 @@ if ($selected_community_id) {
                         </div>
                     </div>
                     <div class="flex items-center gap-4">
-                        <button class="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-lightgreen hover:text-primary transition-all relative">
-                            <i class="fas fa-bell text-lg"></i>
-                            <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">2</span>
-                        </button>
+                        <div class="relative">
+                            <button id="notifDropdownBtn" class="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-lightgreen hover:text-primary transition-all relative">
+                                <i class="fas fa-bell text-lg"></i>
+                                <?php if ($unread_count > 0): ?>
+                                    <span class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold"><?= $unread_count ?></span>
+                                <?php endif; ?>
+                            </button>
+                            <div id="notifDropdown" class="hidden absolute right-0 top-14 bg-white rounded-2xl shadow-2xl border border-gray-100 w-96 z-50 max-h-[500px] overflow-y-auto">
+                                <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+                                    <h4 class="text-lg font-extrabold text-gray-900"><i class="fas fa-bell mr-2 text-primary"></i> Notifikasi</h4>
+                                    <span class="text-xs text-primary font-semibold"><?= $unread_count ?> belum dibaca</span>
+                                </div>
+                                <div class="p-3">
+                                    <?php if (empty($notifications)): ?>
+                                        <div class="text-center py-10 text-gray-500">
+                                            <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
+                                            <p>Tidak ada notifikasi</p>
+                                        </div>
+                                    <?php else: ?>
+                                        <?php foreach ($notifications as $notif): ?>
+                                        <div class="p-4 mb-3 rounded-xl <?php echo $notif['is_read'] ? 'bg-gray-50' : 'bg-lightgreen' ?> border border-gray-100">
+                                            <div class="flex gap-3">
+                                                <div class="w-10 h-10 rounded-full flex items-center justify-center <?php echo $notif['is_read'] ? 'bg-gray-200 text-gray-500' : 'bg-primary/20 text-primary' ?>">
+                                                    <i class="fas <?php echo htmlspecialchars($notif['icon']) ?>"></i>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-semibold text-gray-900"><?php echo htmlspecialchars($notif['title']) ?></p>
+                                                    <?php if ($notif['description']): ?>
+                                                        <p class="text-xs text-gray-600 mt-1"><?php echo htmlspecialchars($notif['description']) ?></p>
+                                                    <?php endif; ?>
+                                                    <p class="text-xs text-gray-400 mt-1"><i class="far fa-clock mr-1"></i><?php echo date('d M H:i', strtotime($notif['created_at'])) ?></p>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="p-4 border-t border-gray-100 text-center">
+                                    <a href="?mark_read=1" class="text-sm text-primary font-semibold hover:underline">Tandai semua sebagai dibaca</a>
+                                </div>
+                            </div>
+                        </div>
                         <a href="logout.php" class="w-11 h-11 rounded-2xl bg-red-50 border border-red-200 flex items-center justify-center text-red-600 hover:bg-red-100 transition-all">
                             <i class="fas fa-sign-out-alt text-lg"></i>
                         </a>
@@ -536,6 +599,17 @@ if ($selected_community_id) {
             sidebar.classList.toggle('-translate-x-full');
             overlay.classList.toggle('hidden');
         }
+
+        // Notifications Dropdown
+        document.getElementById('notifDropdownBtn').addEventListener('click', function(e) {
+            e.stopPropagation();
+            document.getElementById('notifDropdown').classList.toggle('hidden');
+        });
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#notifDropdown') && !e.target.closest('#notifDropdownBtn')) {
+                document.getElementById('notifDropdown').classList.add('hidden');
+            }
+        });
     </script>
 </body>
 </html>
