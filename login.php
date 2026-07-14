@@ -120,11 +120,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     },
                     animation: {
                         'float': 'float 6s ease-in-out infinite',
+                        'sway': 'sway 8s ease-in-out infinite',
+                        'gradient-move': 'gradient-move 15s ease infinite',
+                        'pulse-soft': 'pulse-soft 4s ease-in-out infinite',
                     },
                     keyframes: {
                         float: {
                             '0%, 100%': { transform: 'translateY(0px)' },
                             '50%': { transform: 'translateY(-20px)' },
+                        },
+                        sway: {
+                            '0%, 100%': { transform: 'rotate(-2deg) translateX(-2px)' },
+                            '50%': { transform: 'rotate(2deg) translateX(2px)' },
+                        },
+                        'gradient-move': {
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                            '100%': { backgroundPosition: '0% 50%' },
+                        },
+                        'pulse-soft': {
+                            '0%, 100%': { opacity: 0.5, transform: 'scale(1)' },
+                            '50%': { opacity: 0.7, transform: 'scale(1.05)' },
                         }
                     }
                 }
@@ -134,7 +150,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <style>
         * { font-family: 'Inter', sans-serif; }
         .login-gradient {
-            background: linear-gradient(135deg, #6FAF8F 0%, #7DB7E8 100%);
+            background: linear-gradient(-45deg, #6FAF8F, #7DB7E8, #A8D5BA, #3D8B6A);
+            background-size: 400% 400%;
+            animation: gradient-move 15s ease infinite;
+        }
+        .tree-sway {
+            animation: sway 8s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+        .tree-sway-delay {
+            animation: sway 8s ease-in-out infinite;
+            animation-delay: 2s;
+            transform-origin: bottom center;
+        }
+        .illustration-wrapper:hover .tree-sway,
+        .illustration-wrapper:hover .tree-sway-delay {
+            animation-duration: 4s;
+            filter: drop-shadow(0 0 20px rgba(111, 175, 143, 0.4));
         }
     </style>
 </head>
@@ -188,28 +220,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     
                     <!-- SVG Ilustrasi -->
-                    <svg class="w-full h-auto max-h-64 mt-8 z-10" viewBox="0 0 400 250" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Pohon Besar -->
-                        <circle cx="100" cy="120" r="50" fill="#A8D5BA"/>
-                        <circle cx="70" cy="150" r="35" fill="#6FAF8F"/>
-                        <circle cx="130" cy="150" r="35" fill="#6FAF8F"/>
-                        <rect x="90" y="160" width="20" height="70" fill="#F4EBD0" rx="5"/>
-                        
-                        <!-- Pohon Kecil -->
-                        <circle cx="300" cy="180" r="35" fill="#A8D5BA"/>
-                        <circle cx="275" cy="205" r="25" fill="#6FAF8F"/>
-                        <circle cx="325" cy="205" r="25" fill="#6FAF8F"/>
-                        <rect x="290" y="210" width="20" height="50" fill="#F4EBD0" rx="5"/>
-                        
-                        <!-- Bumi -->
-                        <circle cx="350" cy="60" r="35" fill="#7DB7E8"/>
-                        <ellipse cx="350" cy="60" rx="12" ry="30" fill="#6FAF8F" transform="rotate(15 350 60)"/>
-                        <ellipse cx="350" cy="60" rx="8" ry="22" fill="#A8D5BA" transform="rotate(-10 350 60)"/>
-                        
-                        <!-- Orang -->
-                        <circle cx="200" cy="190" r="18" fill="#FFB86C"/>
-                        <rect x="187" y="208" width="26" height="35" fill="white" rx="5"/>
-                    </svg>
+                    <div class="illustration-wrapper cursor-pointer">
+                        <svg class="w-full h-auto max-h-64 mt-8 z-10" viewBox="0 0 400 250" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Pohon Besar -->
+                            <g class="tree-sway">
+                                <circle cx="100" cy="120" r="50" fill="#A8D5BA"/>
+                                <circle cx="70" cy="150" r="35" fill="#6FAF8F"/>
+                                <circle cx="130" cy="150" r="35" fill="#6FAF8F"/>
+                                <rect x="90" y="160" width="20" height="70" fill="#F4EBD0" rx="5"/>
+                            </g>
+                            
+                            <!-- Pohon Kecil -->
+                            <g class="tree-sway-delay">
+                                <circle cx="300" cy="180" r="35" fill="#A8D5BA"/>
+                                <circle cx="275" cy="205" r="25" fill="#6FAF8F"/>
+                                <circle cx="325" cy="205" r="25" fill="#6FAF8F"/>
+                                <rect x="290" y="210" width="20" height="50" fill="#F4EBD0" rx="5"/>
+                            </g>
+                            
+                            <!-- Bumi -->
+                            <g class="animate-pulse-soft">
+                                <circle cx="350" cy="60" r="35" fill="#7DB7E8"/>
+                                <ellipse cx="350" cy="60" rx="12" ry="30" fill="#6FAF8F" transform="rotate(15 350 60)"/>
+                                <ellipse cx="350" cy="60" rx="8" ry="22" fill="#A8D5BA" transform="rotate(-10 350 60)"/>
+                            </g>
+                            
+                            <!-- Orang -->
+                            <circle cx="200" cy="190" r="18" fill="#FFB86C"/>
+                            <rect x="187" y="208" width="26" height="35" fill="white" rx="5"/>
+                        </svg>
+                    </div>
                 </div>
                 
                 <!-- Kanan: Form Login -->

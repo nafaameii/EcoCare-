@@ -94,6 +94,21 @@ try {
         .status-planned { background: #FEF3C7; color: #92400E; }
         .status-active { background: #DBEAFE; color: #1E40AF; }
         .status-completed { background: #D1FAE5; color: #065F46; }
+        
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out forwards;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-ecocare-dark min-h-screen">
@@ -261,29 +276,19 @@ try {
                     <?php endif; ?>
                 </div>
 
-                <!-- Community Discussion -->
-                <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
-                    <div class="flex items-center justify-between mb-6">
+                <!-- Community Discussion - Chat Style -->
+                <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden flex flex-col" style="height: 600px;">
+                    <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-ecocare-primary/5 to-ecocare-green-dark/5">
                         <h2 class="text-2xl font-bold text-ecocare-dark flex items-center gap-2">
                             <i class="fas fa-comments text-ecocare-primary"></i>
                             Forum Diskusi
                         </h2>
                     </div>
 
-                    <?php if (!$isAdmin && $is_member): ?>
-                        <form id="commentForm" class="mb-8">
-                            <textarea id="commentInput" rows="3" class="w-full border border-gray-200 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-ecocare-primary/50 focus:border-ecocare-primary" placeholder="Bagikan pemikiran atau koordinasi aksi..."></textarea>
-                            <div class="mt-3 flex justify-end">
-                                <button type="submit" class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white px-6 py-2.5 rounded-lg font-semibold hover:shadow-lg transition">
-                                    <i class="fas fa-paper-plane mr-2"></i> Kirim
-                                </button>
-                            </div>
-                        </form>
-                    <?php endif; ?>
-
-                    <div id="commentsList" class="space-y-4">
+                    <!-- Chat Messages Area -->
+                    <div id="commentsList" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
                         <?php if (empty($comments)): ?>
-                            <div class="text-center py-12 text-gray-500">
+                            <div class="text-center py-16 text-gray-500">
                                 <i class="fas fa-comment-slash text-5xl mb-4 opacity-30"></i>
                                 <p class="text-lg">Belum ada diskusi</p>
                                 <?php if (!$isAdmin && !$is_member): ?>
@@ -291,28 +296,76 @@ try {
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
-                            <?php foreach ($comments as $comment): ?>
-                                <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
-                                            <?php if (isset($comment['profile_pic']) && $comment['profile_pic'] && file_exists($comment['profile_pic'])): ?>
-                                                <img src="<?php echo htmlspecialchars($comment['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
-                                            <?php else: ?>
-                                                <div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center">
-                                                    <?php echo strtoupper(substr($comment['name'], 0, 1)); ?>
-                                                </div>
+                            <?php foreach (array_reverse($comments) as $comment): ?>
+                                <?php $isCurrentUser = $comment['user_id'] == $_SESSION['user_id']; ?>
+                                <div class="flex <?php echo $isCurrentUser ? 'justify-end' : 'justify-start'; ?>">
+                                    <div class="flex gap-3 <?php echo $isCurrentUser ? 'flex-row-reverse' : 'flex-row'; ?> max-w-[80%]">
+                                        <?php if (!$isCurrentUser): ?>
+                                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                                                <?php if (isset($comment['profile_pic']) && $comment['profile_pic'] && file_exists($comment['profile_pic'])): ?>
+                                                    <img src="<?php echo htmlspecialchars($comment['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
+                                                <?php else: ?>
+                                                    <div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center">
+                                                        <?php echo strtoupper(substr($comment['name'], 0, 1)); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <div class="flex flex-col gap-1">
+                                            <?php if (!$isCurrentUser): ?>
+                                                <span class="text-sm font-semibold text-ecocare-dark ml-1"><?= htmlspecialchars($comment['name']) ?></span>
                                             <?php endif; ?>
+                                            
+                                            <div class="p-4 rounded-2xl shadow-sm <?php echo $isCurrentUser ? 'bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white rounded-br-md' : 'bg-white border border-gray-100 rounded-bl-md'; ?>">
+                                                <p class="text-sm leading-relaxed"><?= htmlspecialchars($comment['comment']) ?></p>
+                                            </div>
+                                            
+                                            <span class="text-xs text-gray-400 <?php echo $isCurrentUser ? 'text-right' : 'text-left'; ?>">
+                                                <?= date('H:i, d M Y', strtotime($comment['created_at'])) ?>
+                                            </span>
                                         </div>
-                                        <div class="flex-1">
-                                            <p class="font-semibold text-ecocare-dark"><?= htmlspecialchars($comment['name']) ?></p>
-                                            <p class="text-xs text-gray-500"><?= date('d M Y H:i', strtotime($comment['created_at'])) ?></p>
-                                        </div>
+                                        
+                                        <?php if ($isCurrentUser): ?>
+                                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
+                                                <?php if (isset($_SESSION['profile_pic']) && $_SESSION['profile_pic'] && file_exists($_SESSION['profile_pic'])): ?>
+                                                    <img src="<?php echo htmlspecialchars($_SESSION['profile_pic']); ?>" class="w-full h-full object-cover" alt="Profil">
+                                                <?php else: ?>
+                                                    <div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center">
+                                                        <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
-                                    <p class="text-gray-700"><?= htmlspecialchars($comment['comment']) ?></p>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
+
+                    <!-- Chat Input Area -->
+                    <?php if (!$isAdmin && $is_member): ?>
+                        <div class="p-4 border-t border-gray-100 bg-white">
+                            <form id="commentForm" class="flex items-end gap-3">
+                                <div class="flex-1">
+                                    <textarea 
+                                        id="commentInput" 
+                                        rows="1" 
+                                        class="w-full border border-gray-200 rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-ecocare-primary/50 focus:border-ecocare-primary resize-none text-sm" 
+                                        placeholder="Tulis pesan untuk anggota komunitas..."
+                                    ></textarea>
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    id="sendBtn"
+                                    class="w-12 h-12 rounded-full bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white flex items-center justify-center hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled
+                                >
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </form>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -420,6 +473,25 @@ try {
         let isMember = <?= $is_member ? 'true' : 'false' ?>;
         const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
         const actionId = <?= $report['action_id'] ?? 'null' ?>;
+        
+        // Auto-resize textarea and enable/disable send button
+        const commentInput = document.getElementById('commentInput');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        if (commentInput && sendBtn) {
+            commentInput.addEventListener('input', () => {
+                // Auto-resize
+                commentInput.style.height = 'auto';
+                commentInput.style.height = Math.min(commentInput.scrollHeight, 150) + 'px';
+                
+                // Enable/disable button
+                if (commentInput.value.trim()) {
+                    sendBtn.disabled = false;
+                } else {
+                    sendBtn.disabled = true;
+                }
+            });
+        }
 
         // Join button
         document.getElementById('joinBtn')?.addEventListener('click', async () => {

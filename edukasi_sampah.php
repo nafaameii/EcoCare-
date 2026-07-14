@@ -67,8 +67,8 @@ require 'config.php';
     </nav>
 
     <!-- Hero Banner -->
-    <section class="bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark py-16">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section class="relative py-16" style="height: 400px; background-image: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url('https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=1600&q=80'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+        <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex flex-col justify-center">
             <a href="index.php#edukasi" class="inline-flex items-center gap-2 text-white/90 hover:text-white mb-8 transition">
                 <i class="fas fa-arrow-left"></i> Kembali ke Edukasi
             </a>

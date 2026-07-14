@@ -111,9 +111,9 @@ try {
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
         <!-- Sidebar -->
-        <aside class="sidebar w-64 bg-white shadow-lg border-r border-gray-200">
+        <aside class="sidebar w-64 bg-white shadow-lg border-r border-gray-200 flex flex-col sticky top-0 h-screen">
             <!-- Logo -->
-            <div class="p-6 border-b border-gray-200">
+            <div class="p-6 border-b border-gray-200 flex-shrink-0">
                 <div class="flex items-center gap-3">
                     <div class="w-12 h-12 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-xl flex items-center justify-center text-white text-2xl shadow-lg">
                         <i class="fas fa-leaf"></i>
@@ -126,7 +126,7 @@ try {
             </div>
             
             <!-- Menu -->
-            <nav class="p-4">
+            <nav class="p-4 flex-1 overflow-y-auto">
                 <ul class="space-y-2">
                     <li>
                         <a href="admin_dashboard.php" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700">
@@ -174,7 +174,7 @@ try {
             </nav>
             
             <!-- User Info -->
-            <div class="absolute bottom-0 left-0 w-64 p-4 border-t border-gray-200 bg-white">
+            <div class="p-4 border-t border-gray-200 bg-white flex-shrink-0">
                 <a href="admin_profile.php" class="flex items-center gap-3 mb-4 hover:bg-gray-50 rounded-lg p-2 -mx-2 -my-2 transition">
                     <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-ecocare-primary flex-shrink-0">
                         <?php if (isset($_SESSION['profile_pic']) && $_SESSION['profile_pic']): ?>
