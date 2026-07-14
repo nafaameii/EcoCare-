@@ -34,6 +34,55 @@ try {
     $notifications = [];
 }
 
+// Get user's community info
+$my_community = null;
+$community_member_count = 0;
+try {
+    $stmt = $pdo->prepare("SELECT c.*, cm.joined_at FROM communities c JOIN community_members cm ON c.id = cm.community_id WHERE cm.user_id = ? ORDER BY c.created_at DESC LIMIT 1");
+    $stmt->execute([$user_id]);
+    $my_community = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($my_community) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM community_members WHERE community_id = ?");
+        $stmt->execute([$my_community['id']]);
+        $community_member_count = $stmt->fetchColumn();
+    }
+} catch (PDOException $e) {
+    $my_community = null;
+    $community_member_count = 0;
+}
+
+// Get activity feed (user's reports + notifications, unified)
+$activity_feed = [];
+try {
+    // Get user reports for activity feed
+    $stmt = $pdo->prepare("SELECT 
+        id, 
+        title, 
+        status, 
+        created_at, 
+        'report' as type 
+        FROM reports 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 5");
+    $stmt->execute([$user_id]);
+    $reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Get notifications for activity feed
+    $activity_feed = array_merge($reports, $notifications);
+    
+    // Sort activity feed by created_at
+    usort($activity_feed, function($a, $b) {
+        return strtotime($b['created_at']) - strtotime($a['created_at']);
+    });
+    
+    // Limit to 8 items total
+    $activity_feed = array_slice($activity_feed, 0, 8);
+} catch (PDOException $e) {
+    $activity_feed = [];
+}
+
 // Get statistics
 try {
     // Total reports
@@ -274,18 +323,6 @@ try {
                             Komunitas Saya
                         </a>
                     </li>
-                    <li>
-                        <a href="index.php#edukasi" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
-                            <i class="fas fa-book w-5 text-center"></i>
-                            Edukasi
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
-                            <i class="fas fa-chart-bar w-5 text-center"></i>
-                            Statistik
-                        </a>
-                    </li>
                 </ul>
 
                 <div class="mt-6 pt-6 border-t border-gray-100">
@@ -430,107 +467,120 @@ try {
 
             <!-- Page Content -->
             <div class="p-8 space-y-8">
-                <!-- Hero Section -->
-                <section class="animate-fadeInUp bg-gradient-to-r from-primary via-secondary to-green-600 rounded-3xl p-10 text-white relative overflow-hidden shadow-2xl">
+                <!-- Hero Section with Dynamic Info -->
+                <section class="animate-fadeInUp bg-gradient-to-r from-primary via-secondary to-green-600 rounded-3xl p-8 lg:p-12 text-white relative overflow-hidden shadow-2xl">
                     <div class="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                     <div class="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
-                    <div class="relative z-10 flex flex-col lg:flex-row items-center gap-10">
-                        <div class="flex-1">
-                            <p class="text-white/80 font-medium mb-2 flex items-center gap-2">
-                                <i class="fas fa-calendar-check"></i> Selamat Datang Kembali!
+                    <div class="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-10 items-center">
+                        <!-- Left: Welcome & CTA -->
+                        <div class="lg:col-span-2">
+                            <p class="text-white/80 font-medium mb-3 flex items-center gap-2">
+                                <i class="fas fa-leaf"></i> Selamat Datang Kembali, 
+                                <span class="font-bold text-yellow-200"><?= htmlspecialchars($user_name) ?></span>!
                             </p>
-                            <h1 class="text-4xl lg:text-5xl font-extrabold mb-4">
-                                Hai, <span class="text-yellow-200"><?= htmlspecialchars($user_name) ?></span>! 👋
+                            <h1 class="text-4xl lg:text-5xl font-extrabold mb-4 leading-tight">
+                                Mari Jaga Lingkungan Bersama 🌿
                             </h1>
-                            <p class="text-lg text-white/90 mb-8 max-w-xl">
-                                Mari bersama menjaga lingkungan sekitar. Setiap laporan kamu adalah langkah kecil untuk perubahan besar!
+                            <p class="text-white/90 mb-8 text-lg max-w-2xl">
+                                Setiap laporan kamu adalah langkah kecil untuk perubahan besar. Ayo mulai hari ini!
                             </p>
                             <div class="flex flex-wrap gap-4">
-                                <a href="submit_report.php" class="px-8 py-4 bg-white text-primary font-bold rounded-2xl shadow-lg hover:bg-yellow-50 hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2">
-                                    <i class="fas fa-plus-circle"></i>
+                                <a href="submit_report.php" class="group px-8 py-4 bg-white text-primary font-bold rounded-2xl shadow-xl hover:bg-yellow-50 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex items-center gap-3">
+                                    <i class="fas fa-plus-circle text-xl group-hover:rotate-90 transition-transform duration-300"></i>
                                     Buat Laporan Baru
                                 </a>
-                                <a href="map.php" class="px-8 py-4 bg-white/20 border border-white/30 text-white font-bold rounded-2xl backdrop-blur hover:bg-white/30 transition-all flex items-center gap-2">
-                                    <i class="fas fa-map"></i>
+                                <a href="map.php" class="px-8 py-4 bg-white/20 border border-white/30 text-white font-bold rounded-2xl backdrop-blur hover:bg-white/30 transition-all duration-300 flex items-center gap-3">
+                                    <i class="fas fa-map-marked-alt text-lg"></i>
                                     Lihat Peta
                                 </a>
                             </div>
                         </div>
-                        <div class="w-64 h-64 bg-white/10 rounded-3xl border border-white/20 flex items-center justify-center backdrop-blur">
-                            <i class="fas fa-seedling text-8xl text-white/80"></i>
+
+                        <!-- Right: Dynamic Stats Cards -->
+                        <div class="space-y-4">
+                            <!-- Contribution Progress -->
+                            <div class="bg-white/20 backdrop-blur rounded-2xl p-5 border border-white/20">
+                                <h4 class="text-sm font-semibold mb-2 flex items-center gap-2"><i class="fas fa-fire"></i> Kontribusi Bulan Ini</h4>
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-2xl font-extrabold"><?= $total_reports * 25 ?></span>
+                                    <span class="text-xs text-white/80">pts</span>
+                                </div>
+                                <div class="w-full bg-white/20 rounded-full h-2.5 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-yellow-400 to-yellow-300 h-full rounded-full" style="width: min(<?= $total_reports * 10 ?>,100)%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Community Info -->
+                            <div class="bg-white/20 backdrop-blur rounded-2xl p-5 border border-white/20">
+                                <h4 class="text-sm font-semibold mb-2 flex items-center gap-2"><i class="fas fa-users"></i> Komunitas Saya</h4>
+                                <p class="text-2xl font-extrabold mb-1">
+                                    <?= $my_community ? htmlspecialchars(substr($my_community['title'],0,18)) : 'Belum Gabung' ?>
+                                </p>
+                                <p class="text-xs text-white/80 flex items-center gap-1">
+                                    <i class="fas fa-user-friends"></i> <?= $community_member_count ?> Anggota
+                                </p>
+                            </div>
+
+                            <!-- Upcoming Action -->
+                            <div class="bg-white/20 backdrop-blur rounded-2xl p-5 border border-white/20">
+                                <h4 class="text-sm font-semibold mb-2 flex items-center gap-2"><i class="fas fa-calendar-star"></i> Aksi Mendatang</h4>
+                                <p class="font-semibold mb-1"><?= $my_community ? htmlspecialchars($my_community['current_action']) : 'Tanam Pohon' ?></p>
+                                <p class="text-xs text-white/80">Hari ini • 08:00 WIB</p>
+                            </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- Statistics Cards -->
                 <section class="animate-fadeInUp" style="animation-delay: 0.1s;">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <!-- Total Reports -->
-                        <div class="card-lift bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
+                        <div class="card-lift bg-white border border-gray-100 rounded-3xl p-7 shadow-xl">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center text-blue-700 text-3xl">
                                     <i class="fas fa-file-alt"></i>
                                 </div>
-                                <span class="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full">+12%</span>
+                                <span class="text-xs font-bold text-gray-500">Total</span>
                             </div>
-                            <p class="text-3xl font-extrabold mb-1 counter" data-target="<?= $total_reports ?>">0</p>
-                            <p class="text-white/80 text-sm font-medium">Total Laporan</p>
+                            <p class="text-4xl font-extrabold text-gray-900 mb-1 counter" data-target="<?= $total_reports ?>">0</p>
+                            <p class="text-base font-semibold text-gray-600">Laporan Kamu</p>
                         </div>
 
                         <!-- Baru -->
-                        <div class="card-lift bg-gradient-to-br from-red-500 to-red-700 rounded-3xl p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
+                        <div class="card-lift bg-white border border-gray-100 rounded-3xl p-7 shadow-xl">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="w-16 h-16 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center text-red-700 text-3xl">
                                     <i class="fas fa-clock"></i>
                                 </div>
+                                <span class="text-xs font-bold text-gray-500">Baru</span>
                             </div>
-                            <p class="text-3xl font-extrabold mb-1 counter" data-target="<?= $reports_baru ?>">0</p>
-                            <p class="text-white/80 text-sm font-medium">Baru</p>
+                            <p class="text-4xl font-extrabold text-gray-900 mb-1 counter" data-target="<?= $reports_baru ?>">0</p>
+                            <p class="text-base font-semibold text-gray-600">Menunggu Respon</p>
                         </div>
 
                         <!-- Diproses -->
-                        <div class="card-lift bg-gradient-to-br from-yellow-500 to-orange-600 rounded-3xl p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
+                        <div class="card-lift bg-white border border-gray-100 rounded-3xl p-7 shadow-xl">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="w-16 h-16 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-2xl flex items-center justify-center text-yellow-700 text-3xl">
                                     <i class="fas fa-spinner fa-spin"></i>
                                 </div>
+                                <span class="text-xs font-bold text-gray-500">Diproses</span>
                             </div>
-                            <p class="text-3xl font-extrabold mb-1 counter" data-target="<?= $reports_diproses ?>">0</p>
-                            <p class="text-white/80 text-sm font-medium">Diproses</p>
+                            <p class="text-4xl font-extrabold text-gray-900 mb-1 counter" data-target="<?= $reports_diproses ?>">0</p>
+                            <p class="text-base font-semibold text-gray-600">Sedang Diperiksa</p>
                         </div>
 
                         <!-- Selesai -->
-                        <div class="card-lift bg-gradient-to-br from-green-500 to-primary rounded-3xl p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
+                        <div class="card-lift bg-white border border-gray-100 rounded-3xl p-7 shadow-xl">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="w-16 h-16 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center text-green-700 text-3xl">
                                     <i class="fas fa-check-circle"></i>
                                 </div>
+                                <span class="text-xs font-bold text-gray-500">Selesai</span>
                             </div>
-                            <p class="text-3xl font-extrabold mb-1 counter" data-target="<?= $reports_selesai ?>">0</p>
-                            <p class="text-white/80 text-sm font-medium">Selesai</p>
-                        </div>
-
-                        <!-- Kontribusi -->
-                        <div class="card-lift bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
-                                    <i class="fas fa-trophy"></i>
-                                </div>
-                            </div>
-                            <p class="text-3xl font-extrabold mb-1">12</p>
-                            <p class="text-white/80 text-sm font-medium">Total Kontribusi</p>
-                        </div>
-
-                        <!-- Lokasi -->
-                        <div class="card-lift bg-gradient-to-br from-teal-500 to-cyan-700 rounded-3xl p-6 text-white shadow-lg">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-2xl">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                </div>
-                            </div>
-                            <p class="text-3xl font-extrabold mb-1">8</p>
-                            <p class="text-white/80 text-sm font-medium">Lokasi Dipantau</p>
+                            <p class="text-4xl font-extrabold text-gray-900 mb-1 counter" data-target="<?= $reports_selesai ?>">0</p>
+                            <p class="text-base font-semibold text-gray-600">Selesai Ditangani</p>
                         </div>
                     </div>
                 </section>
@@ -563,60 +613,78 @@ try {
                     <section class="animate-fadeInUp" style="animation-delay: 0.3s;">
                         <div class="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 h-full">
                             <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                                <i class="fas fa-history text-primary"></i>
+                                <i class="fas fa-clock-rotate-left text-primary"></i>
                                 Aktivitas Terbaru
                             </h2>
 
                             <div class="space-y-4">
-                                <div class="flex gap-4 p-4 bg-lightgreen rounded-2xl">
-                                    <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white flex-shrink-0">
-                                        <i class="fas fa-plus"></i>
+                                <?php if (empty($activity_feed)): ?>
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i class="fas fa-inbox text-3xl text-gray-300 mb-3"></i>
+                                        <p class="text-sm">Belum ada aktivitas</p>
                                     </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-semibold text-gray-900">Kamu membuat laporan baru</p>
-                                        <p class="text-xs text-gray-500">2 menit lalu</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex gap-4 p-4 bg-yellow-50 rounded-2xl">
-                                    <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                                        <i class="fas fa-user-check"></i>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-semibold text-gray-900">Admin memverifikasi laporan</p>
-                                        <p class="text-xs text-gray-500">1 jam lalu</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex gap-4 p-4 bg-blue-50 rounded-2xl">
-                                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                                        <i class="fas fa-users"></i>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-semibold text-gray-900">5 warga baru bergabung</p>
-                                        <p class="text-xs text-gray-500">3 jam lalu</p>
-                                    </div>
-                                </div>
-
-                                <div class="flex gap-4 p-4 bg-green-50 rounded-2xl">
-                                    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                                        <i class="fas fa-leaf"></i>
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-semibold text-gray-900">Komunitas tanam pohon dimulai</p>
-                                        <p class="text-xs text-gray-500">Kemarin</p>
-                                    </div>
-                                </div>
+                                <?php else: ?>
+                                    <?php foreach ($activity_feed as $activity): ?>
+                                        <div class="flex gap-4 p-4 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-lightgreen transition-all duration-200">
+                                            <!-- Icon -->
+                                            <div class="w-11 h-11 rounded-full flex items-center justify-center text-white flex-shrink-0 <?php 
+                                                if (isset($activity['type']) && $activity['type'] == 'report') {
+                                                    echo 'bg-gradient-to-br from-blue-500 to-blue-600';
+                                                } else if (isset($activity['type']) && in_array($activity['type'], ['report_update','community'])) {
+                                                    echo 'bg-gradient-to-br from-yellow-500 to-orange-500';
+                                                } else {
+                                                    echo 'bg-gradient-to-br from-primary to-secondary';
+                                                }
+                                            ?>">
+                                                <i class="fas <?php 
+                                                    if (isset($activity['type']) && $activity['type'] == 'report') {
+                                                        echo 'fa-file-lines';
+                                                    } else if (isset($activity['type']) && $activity['type'] == 'report_update') {
+                                                        echo 'fa-sync';
+                                                    } else if (isset($activity['icon'])) {
+                                                        echo $activity['icon'];
+                                                    } else {
+                                                        echo 'fa-bell';
+                                                    }
+                                                ?>"></i>
+                                            </div>
+                                            
+                                            <!-- Content -->
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-sm font-semibold text-gray-900">
+                                                    <?php 
+                                                        if (isset($activity['type']) && $activity['type'] == 'report') {
+                                                            echo htmlspecialchars('Kamu mengirim laporan: ' . $activity['title']);
+                                                        } else if (isset($activity['title'])) {
+                                                            echo htmlspecialchars($activity['title']);
+                                                        } else {
+                                                            echo 'Notifikasi baru';
+                                                        }
+                                                    ?>
+                                                </p>
+                                                <?php if (isset($activity['description'])): ?>
+                                                    <p class="text-xs text-gray-600 mt-1 line-clamp-2"><?= htmlspecialchars($activity['description']) ?></p>
+                                                <?php endif; ?>
+                                                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                                                    <i class="far fa-clock"></i> 
+                                                    <?= date('d M Y H:i', strtotime($activity['created_at'])) ?>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
 
                             <div class="mt-6 p-4 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl border border-primary/20">
-                                <h4 class="font-bold text-primary mb-2">Capaian Minggu Ini</h4>
+                                <h4 class="font-bold text-primary mb-3">Capaian Minggu Ini</h4>
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-medium text-gray-600">Laporan Selesai</span>
-                                    <span class="text-xs font-bold text-primary">85%</span>
+                                    <span class="text-xs font-medium text-gray-700">Laporan Selesai</span>
+                                    <span class="text-xs font-extrabold text-primary">
+                                        <?= $total_reports > 0 ? round(($reports_selesai / $total_reports) * 100) : 0 ?>%
+                                    </span>
                                 </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                    <div class="bg-gradient-to-r from-primary to-secondary h-2.5 rounded-full" style="width: 85%"></div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                    <div class="bg-gradient-to-r from-primary to-secondary h-full rounded-full" style="width: <?= $total_reports > 0 ? round(($reports_selesai / $total_reports) * 100) : 0 ?>%"></div>
                                 </div>
                             </div>
                         </div>
