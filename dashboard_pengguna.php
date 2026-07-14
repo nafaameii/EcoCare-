@@ -243,7 +243,7 @@ try {
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
+                        <a href="komunitas_saya.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
                             <i class="fas fa-users w-5 text-center"></i>
                             Komunitas Saya
                         </a>
