@@ -171,7 +171,7 @@ if ($selected_report_id) {
                         </a>
                     </li>
                     <li>
-                        <a href="dashboard_pengguna.php#laporan" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
+                        <a href="laporan_saya.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
                             <i class="fas fa-file-alt w-5 text-center"></i>
                             Laporan Saya
                         </a>

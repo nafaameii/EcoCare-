@@ -338,7 +338,7 @@ try {
                         </a>
                     </li>
                     <li>
-                        <a href="#laporan" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
+                        <a href="laporan_saya.php" class="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium hover:bg-lightgreen hover:text-primary transition-all duration-200">
                             <i class="fas fa-file-alt w-5 text-center"></i>
                             Laporan Saya
                         </a>
@@ -741,7 +741,7 @@ try {
                             </h2>
                             <p class="text-gray-500 text-sm mt-1">Laporan terbaru yang kamu buat</p>
                         </div>
-                        <a href="#" class="text-primary font-semibold hover:text-secondary transition-all flex items-center gap-1">
+                        <a href="laporan_saya.php" class="text-primary font-semibold hover:text-secondary transition-all flex items-center gap-1">
                             Lihat Semua <i class="fas fa-arrow-right text-sm"></i>
                         </a>
                     </div>
