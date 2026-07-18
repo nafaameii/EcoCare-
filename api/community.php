@@ -107,7 +107,7 @@ try {
             $isMember->execute([$report_id, $user_id]);
             $isMember = $isMember->fetch() !== false;
             
-            $members = $pdo->prepare("SELECT cm.*, u.name, u.profile_pic FROM community_members cm JOIN users u ON cm.user_id = u.id WHERE cm.report_id = ? ORDER BY cm.joined_at DESC LIMIT 20");
+            $members = $pdo->prepare("SELECT cm.*, u.name, u.profile_pic FROM community_members cm JOIN users u ON cm.user_id = u.id WHERE cm.report_id = ? AND u.role = 'masyarakat' ORDER BY cm.joined_at DESC LIMIT 20");
             $members->execute([$report_id]);
             $members = $members->fetchAll();
             
@@ -115,7 +115,7 @@ try {
             $actions->execute([$report_id]);
             $actions = $actions->fetchAll();
             
-            $comments = $pdo->prepare("SELECT cc.*, u.name FROM community_comments cc JOIN users u ON cc.user_id = u.id WHERE cc.report_id = ? ORDER BY cc.created_at DESC");
+            $comments = $pdo->prepare("SELECT cc.*, u.name, u.profile_pic FROM community_comments cc JOIN users u ON cc.user_id = u.id WHERE cc.report_id = ? ORDER BY cc.created_at DESC");
             $comments->execute([$report_id]);
             $comments = $comments->fetchAll();
             
@@ -146,9 +146,9 @@ try {
                 ->execute([$report_id, $user_id, $comment]);
             
             $newCommentId = $pdo->lastInsertId();
-            $newComment = $pdo->prepare("SELECT cc.*, u.name FROM community_comments cc JOIN users u ON cc.user_id = u.id WHERE cc.id = ?")
-                ->execute([$newCommentId])
-                ->fetch();
+            $stmt = $pdo->prepare("SELECT cc.*, u.name, u.profile_pic FROM community_comments cc JOIN users u ON cc.user_id = u.id WHERE cc.id = ?");
+            $stmt->execute([$newCommentId]);
+            $newComment = $stmt->fetch();
             
             echo json_encode([
                 'success' => true,
@@ -158,6 +158,15 @@ try {
             break;
         
         case 'create_action':
+            // Check admin role
+            $checkRole = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $checkRole->execute([$user_id]);
+            $role = $checkRole->fetchColumn();
+            if ($role !== 'admin') {
+                echo json_encode(['success' => false, 'message' => 'Hanya admin yang dapat membuat aksi']);
+                exit;
+            }
+
             $report_id = intval($_POST['report_id'] ?? 0);
             $title = sanitize_input($_POST['title'] ?? '');
             $description = sanitize_input($_POST['description'] ?? '');
@@ -309,6 +318,18 @@ try {
 
             $stmt = $pdo->prepare("UPDATE reports SET status = ? WHERE id = ?");
             $stmt->execute([$newStatus, $reportId]);
+
+            // Sync with community actions
+            if ($newStatus === 'Selesai') {
+                $pdo->prepare("UPDATE community_actions SET status = 'completed', progress = 100 WHERE report_id = ?")
+                    ->execute([$reportId]);
+            } elseif ($newStatus === 'Aksi Berjalan') {
+                $pdo->prepare("UPDATE community_actions SET status = 'active' WHERE report_id = ? AND status IN ('planned')")
+                    ->execute([$reportId]);
+            } elseif ($newStatus === 'Komunitas Terbentuk') {
+                $pdo->prepare("UPDATE community_actions SET status = 'planned' WHERE report_id = ? AND status IN ('active', 'completed')")
+                    ->execute([$reportId]);
+            }
 
             echo json_encode(['success' => true, 'message' => 'Status laporan berhasil diperbarui']);
             break;

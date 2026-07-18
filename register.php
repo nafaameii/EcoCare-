@@ -1,9 +1,9 @@
 <?php
 require 'config.php';
+require_login(false);
 
 $errors = [];
 $success = '';
-$debug_info = '';
 
 // Redirect jika sudah login
 if (is_logged_in()) {
@@ -12,14 +12,9 @@ if (is_logged_in()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // LOG DEBUG: Semua data POST yang diterima
-    $debug_info .= "<h3 class=\"font-bold mb-2\">Debug Info:</h3>";
-    $debug_info .= "<pre class=\"text-xs bg-white p-2 rounded\">POST RAW: " . print_r($_POST, true) . "</pre>";
-    
     // Verify CSRF Token
     if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
         $errors[] = "Invalid security token. Please try again.";
-        $debug_info .= "<p class=\"text-red-500 mt-2\">ERROR: Invalid CSRF Token</p>";
     } else {
         // Sanitize & Validate Inputs
         $name = sanitize_input($_POST['name'] ?? '');
@@ -28,13 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $confirm_password = $_POST['confirm_password'] ?? '';
         $phone = sanitize_input($_POST['phone'] ?? '');
         $resident_id = sanitize_input($_POST['resident_id'] ?? '');
-        
-        $debug_info .= "<p class=\"mt-2\">Name: '$name'</p>";
-        $debug_info .= "<p>Email: '$email'</p>";
-        $debug_info .= "<p>Password: '$password' (length: " . strlen($password) . ")</p>";
-        $debug_info .= "<p>Confirm Password: '$confirm_password' (length: " . strlen($confirm_password) . ")</p>";
-        $debug_info .= "<p>Phone: '$phone'</p>";
-        $debug_info .= "<p>Resident ID (NIK): '$resident_id'</p>";
 
         // Validasi Nama
         if (empty($name)) {
@@ -48,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($password)) {
             $errors[] = "Password tidak boleh kosong";
         } elseif (strlen($password) < 8) {
-            $errors[] = "Password minimal 8 karakter (panjang saat ini: " . strlen($password) . ")";
+            $errors[] = "Password minimal 8 karakter";
         }
         if ($password !== $confirm_password) {
             $errors[] = "Password dan Konfirmasi Password tidak cocok";
@@ -62,51 +50,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Cek apakah email sudah terdaftar
                 $check_email = $pdo->prepare("SELECT id, name FROM users WHERE email = ?");
                 $check_email->execute([$email]);
-                
+
                 if ($check_email->fetch()) {
                     $errors[] = "Email sudah terdaftar";
-                    $debug_info .= "<p class=\"text-red-500 mt-2\">ERROR: Email $email sudah terdaftar</p>";
                 } else {
                     // Cek apakah NIK sudah terdaftar
                     $check_nik = $pdo->prepare("SELECT id, name FROM users WHERE resident_id = ?");
                     $check_nik->execute([$resident_id]);
-                    $nik_check_result = $check_nik->fetch();
-                    $debug_info .= "<p class=\"mt-2\">NIK Check Result: " . print_r($nik_check_result, true) . "</p>";
-                    
-                    if ($nik_check_result) {
-                        $errors[] = "NIK sudah terdaftar (digunakan oleh: " . htmlspecialchars($nik_check_result['name']) . ")";
-                        $debug_info .= "<p class=\"text-red-500\">ERROR: NIK $resident_id sudah terdaftar</p>";
+
+                    if ($check_nik->fetch()) {
+                        $errors[] = "NIK sudah terdaftar";
                     } else {
                         // Hash Password
                         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                        
+
                         // Insert User
                         $stmt = $pdo->prepare("INSERT INTO users (name, email, password, phone, resident_id, role) VALUES (?, ?, ?, ?, ?, 'masyarakat')");
                         $stmt->execute([$name, $email, $hashed_password, $phone, $resident_id]);
-                        
-                        $debug_info .= "<p class=\"text-green-500 mt-2 font-bold\">SUCCESS: User $email berhasil didaftarkan!</p>";
-                        
+
                         // Regenerate Session ID untuk keamanan
                         session_regenerate_id(true);
-                        
+
                         // Auto Login setelah registrasi
-                    $_SESSION['user_id'] = $pdo->lastInsertId();
-                    $_SESSION['name'] = $name;
-                    $_SESSION['email'] = $email;
-                    $_SESSION['role'] = 'masyarakat';
+                        $_SESSION['user_id'] = $pdo->lastInsertId();
+                        $_SESSION['name'] = $name;
+                        $_SESSION['email'] = $email;
+                        $_SESSION['role'] = 'masyarakat';
                         $_SESSION['profile_pic'] = null;
-                        
+
                         $success = "Registrasi berhasil! Anda akan dialihkan...";
                         header("Refresh: 2; URL=dashboard_pengguna.php");
                     }
                 }
             } catch(PDOException $e) {
-                // Tampilkan error asli untuk debugging
                 $errors[] = "Kesalahan Database: " . $e->getMessage();
-                $debug_info .= "<p class=\"text-red-500 mt-2\">DB ERROR: " . $e->getMessage() . "</p>";
             }
-        } else {
-            $debug_info .= "<p class=\"text-red-500 mt-2\">ERRORS FOUND: " . print_r($errors, true) . "</p>";
         }
     }
 }
@@ -116,308 +94,201 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar - EcoCare+</title>
+    <title>Daftar Akun - EcoCare+</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
-                        'inter': ['Inter', 'sans-serif'],
+                        'poppins': ['Poppins', 'sans-serif'],
                     },
                     colors: {
-                        'ecocare-primary': '#6FAF8F',
-                        'ecocare-secondary': '#A8D5BA',
-                        'ecocare-accent': '#7DB7E8',
-                        'ecocare-cream': '#F4EBD0',
-                        'ecocare-beige': '#E8DCCF',
-                        'ecocare-orange': '#FFB86C',
-                        'ecocare-dark': '#2D3748',
-                        'ecocare-green-dark': '#3D8B6A'
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                        'sway': 'sway 8s ease-in-out infinite',
-                        'gradient-move': 'gradient-move 15s ease infinite',
-                        'pulse-soft': 'pulse-soft 4s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-20px)' },
-                        },
-                        sway: {
-                            '0%, 100%': { transform: 'rotate(-2deg) translateX(-2px)' },
-                            '50%': { transform: 'rotate(2deg) translateX(2px)' },
-                        },
-                        'gradient-move': {
-                            '0%': { backgroundPosition: '0% 50%' },
-                            '50%': { backgroundPosition: '100% 50%' },
-                            '100%': { backgroundPosition: '0% 50%' },
-                        },
-                        'pulse-soft': {
-                            '0%, 100%': { opacity: 0.5, transform: 'scale(1)' },
-                            '50%': { opacity: 0.7, transform: 'scale(1.05)' },
-                        }
+                        'ecocare-primary': '#2E7D32',
+                        'ecocare-secondary': '#43A047',
+                        'ecocare-light': '#C8E6C9',
+                        'ecocare-cream': '#F4F4F4',
+                        'ecocare-dark': '#1B5E20',
                     }
                 }
             }
         }
     </script>
     <style>
-        * { font-family: 'Inter', sans-serif; }
-        .register-gradient {
-            background: linear-gradient(-45deg, #6FAF8F, #7DB7E8, #A8D5BA, #3D8B6A);
-            background-size: 400% 400%;
-            animation: gradient-move 15s ease infinite;
+        * { font-family: 'Poppins', sans-serif; }
+        .login-bg {
+            background-image: url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
         }
-        .tree-sway {
-            animation: sway 8s ease-in-out infinite;
-            transform-origin: bottom center;
+        .overlay {
+            background: linear-gradient(135deg, rgba(27, 94, 32, 0.85), rgba(46, 125, 50, 0.75));
         }
-        .tree-sway-delay {
-            animation: sway 8s ease-in-out infinite;
-            animation-delay: 2s;
-            transform-origin: bottom center;
-        }
-        .illustration-wrapper:hover .tree-sway,
-        .illustration-wrapper:hover .tree-sway-delay {
-            animation-duration: 4s;
-            filter: drop-shadow(0 0 20px rgba(111, 175, 143, 0.4));
+        .glass-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
     </style>
 </head>
-<body class="register-gradient min-h-screen py-8">
-    <div class="min-h-screen flex items-center justify-center p-4">
-        <div class="max-w-6xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden">
-            <div class="grid lg:grid-cols-2 gap-0">
-                <!-- Kiri: Ilustrasi & Deskripsi -->
-                <div class="bg-gradient-to-br from-ecocare-primary to-ecocare-accent p-12 text-white flex flex-col justify-center relative overflow-hidden">
-                    <!-- Decorative elements -->
-                    <div class="absolute top-10 right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl animate-float"></div>
-                    <div class="absolute bottom-10 left-10 w-48 h-48 bg-yellow-300/10 rounded-full blur-3xl animate-float" style="animation-delay: 2s;"></div>
-                    
-                    <div class="flex items-center gap-3 mb-8 z-10">
-                        <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-xl">
-                            <i class="fas fa-leaf text-ecocare-primary"></i>
-                        </div>
-                        <div>
-                            <span class="text-3xl font-bold">EcoCare+</span>
-                            <p class="text-sm opacity-70">Peduli Lingkungan Kita</p>
-                        </div>
-                    </div>
-                    
-                    <h2 class="text-4xl font-bold mb-6 leading-tight z-10">
-                        Bergabung Bersama Kami untuk Lingkungan yang Lebih Baik!
-                    </h2>
-                    <p class="text-lg opacity-90 mb-10 max-w-md z-10">
-                        Daftarkan akun Anda sekarang dan mulai berkontribusi dalam menjaga kebersihan lingkungan.
-                    </p>
-                    
-                    <!-- Benefits -->
-                    <div class="space-y-4 z-10">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <span class="font-medium">Laporkan masalah dengan cepat & mudah</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <span class="font-medium">Pantau progress laporan secara real-time</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                <i class="fas fa-book"></i>
-                            </div>
-                            <span class="font-medium">Dapatkan tips edukasi lingkungan</span>
-                        </div>
-                    </div>
-                    
-                    <!-- SVG Ilustrasi -->
-                    <div class="illustration-wrapper cursor-pointer">
-                        <svg class="w-full h-auto max-h-64 mt-8 z-10" viewBox="0 0 400 250" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Pohon -->
-                            <g class="tree-sway">
-                                <circle cx="100" cy="120" r="50" fill="#A8D5BA"/>
-                                <circle cx="70" cy="150" r="35" fill="#6FAF8F"/>
-                                <circle cx="130" cy="150" r="35" fill="#6FAF8F"/>
-                                <rect x="90" y="160" width="20" height="70" fill="#F4EBD0" rx="5"/>
-                            </g>
-                            
-                            <!-- Pohon 2 -->
-                            <g class="tree-sway-delay">
-                                <circle cx="300" cy="180" r="35" fill="#A8D5BA"/>
-                                <circle cx="275" cy="205" r="25" fill="#6FAF8F"/>
-                                <circle cx="325" cy="205" r="25" fill="#6FAF8F"/>
-                                <rect x="290" y="210" width="20" height="50" fill="#F4EBD0" rx="5"/>
-                            </g>
-                            
-                            <!-- Orang -->
-                            <circle cx="200" cy="190" r="18" fill="#FFB86C"/>
-                            <rect x="187" y="208" width="26" height="35" fill="white" rx="5"/>
-                            
-                            <!-- Bumi -->
-                            <g class="animate-pulse-soft">
-                                <circle cx="350" cy="60" r="35" fill="#7DB7E8"/>
-                                <ellipse cx="350" cy="60" rx="12" ry="30" fill="#6FAF8F" transform="rotate(15 350 60)"/>
-                                <ellipse cx="350" cy="60" rx="8" ry="22" fill="#A8D5BA" transform="rotate(-10 350 60)"/>
-                            </g>
-                            
-                            <!-- Recycle -->
-                            <circle cx="150" cy="60" r="30" fill="#FFB86C"/>
-                            <text x="150" y="70" text-anchor="middle" fill="white" font-size="24" font-weight="bold">♻️</text>
-                        </svg>
+<body class="login-bg min-h-screen flex items-center justify-center p-4 py-12">
+    <div class="absolute inset-0 overlay"></div>
+    <div class="relative z-10 w-full max-w-lg">
+        <!-- Back to Home -->
+        <a href="index.php" class="mb-6 inline-flex items-center text-white/90 hover:text-white transition-all">
+            <i class="fas fa-arrow-left mr-2"></i> Kembali ke Beranda
+        </a>
+
+        <!-- Register Card -->
+        <div class="glass-card rounded-3xl p-8 border border-white/20">
+            <!-- Logo -->
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-20 h-20 bg-gradient-to-br from-ecocare-primary to-ecocare-secondary rounded-2xl flex items-center justify-center text-white text-4xl shadow-xl mb-4">
+                    <i class="fas fa-leaf"></i>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800">EcoCare+</h1>
+                <p class="text-gray-500 mt-1">Peduli Lingkungan Kita</p>
+            </div>
+
+            <!-- Title -->
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Buat Akun Baru</h2>
+            <p class="text-gray-500 mb-8">Isi formulir berikut untuk mendaftar</p>
+
+            <!-- Success Message -->
+            <?php if ($success): ?>
+                <div class="bg-green-50 border border-green-200 text-green-700 px-5 py-4 rounded-2xl mb-6 flex items-start gap-3">
+                    <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
+                    <div>
+                        <p class="font-semibold">Registrasi Berhasil!</p>
+                        <p class="text-sm mt-1"><?php echo htmlspecialchars($success); ?></p>
                     </div>
                 </div>
-                
-                <!-- Kanan: Form Register -->
-                <div class="p-12 flex flex-col justify-center">
-                    <div class="max-w-md w-full mx-auto">
-                        <div class="flex items-center justify-between mb-8">
-                            <h1 class="text-4xl font-extrabold text-ecocare-dark">Daftar Akun!</h1>
-                            <a href="index.php" class="text-ecocare-dark/60 hover:text-ecocare-primary transition flex items-center gap-1">
-                                <i class="fas fa-arrow-left"></i> Kembali
-                            </a>
-                        </div>
-                        <p class="text-ecocare-dark/70 mb-10">Isi formulir berikut untuk menjadi bagian dari komunitas EcoCare+</p>
-                        
-                        <?php if ($success): ?>
-                            <div class="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-2xl mb-8 shadow-sm">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <i class="fas fa-check-circle text-green-500"></i>
-                                    <span class="font-semibold">Registrasi Berhasil!</span>
-                                </div>
-                                <p class="text-sm"><?php echo htmlspecialchars($success); ?></p>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if ($errors): ?>
-                            <div class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-2xl mb-8 shadow-sm">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <i class="fas fa-exclamation-circle"></i>
-                                    <span class="font-semibold">Registrasi Gagal</span>
-                                </div>
-                                <ul class="space-y-1 text-sm">
-                                    <?php foreach ($errors as $error): ?>
-                                        <li><?php echo htmlspecialchars($error); ?></li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <!-- Debug Info (Hanya untuk testing) -->
-                        <?php if ($debug_info): ?>
-                            <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-6 py-4 rounded-2xl mb-8 text-xs overflow-auto max-h-60 shadow-sm">
-                                <div class="font-semibold mb-2 flex items-center gap-2">
-                                    <i class="fas fa-bug"></i> Debug Info
-                                </div>
-                                <?php echo $debug_info; ?>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <form method="POST" action="" class="space-y-5">
-                            <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
-                            
-                            <div class="grid md:grid-cols-2 gap-5">
-                                <div class="space-y-2">
-                                    <label class="block text-ecocare-dark font-semibold" for="name">Nama Lengkap</label>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ecocare-primary">
-                                            <i class="fas fa-user"></i>
-                                        </span>
-                                        <input type="text" name="name" id="name" required 
-                                               class="w-full pl-14 pr-4 py-4 bg-ecocare-cream border border-ecocare-secondary/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary transition-all text-ecocare-dark shadow-sm"
-                                               placeholder="Nama Lengkap"
-                                               value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
-                                    </div>
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label class="block text-ecocare-dark font-semibold" for="email">Email</label>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ecocare-primary">
-                                            <i class="fas fa-envelope"></i>
-                                        </span>
-                                        <input type="email" name="email" id="email" required 
-                                               class="w-full pl-14 pr-4 py-4 bg-ecocare-cream border border-ecocare-secondary/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary transition-all text-ecocare-dark shadow-sm"
-                                               placeholder="email@example.com"
-                                               value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="grid md:grid-cols-2 gap-5">
-                                <div class="space-y-2">
-                                    <label class="block text-ecocare-dark font-semibold" for="password">Password</label>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ecocare-primary">
-                                            <i class="fas fa-lock"></i>
-                                        </span>
-                                        <input type="password" name="password" id="password" required 
-                                               class="w-full pl-14 pr-4 py-4 bg-ecocare-cream border border-ecocare-secondary/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary transition-all text-ecocare-dark shadow-sm"
-                                               placeholder="Minimal 8 karakter">
-                                    </div>
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label class="block text-ecocare-dark font-semibold" for="confirm_password">Konfirmasi Password</label>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ecocare-primary">
-                                            <i class="fas fa-check-double"></i>
-                                        </span>
-                                        <input type="password" name="confirm_password" id="confirm_password" required 
-                                               class="w-full pl-14 pr-4 py-4 bg-ecocare-cream border border-ecocare-secondary/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary transition-all text-ecocare-dark shadow-sm"
-                                               placeholder="Ketik ulang password">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="grid md:grid-cols-2 gap-5">
-                                <div class="space-y-2">
-                                    <label class="block text-ecocare-dark font-semibold" for="phone">Nomor Telepon</label>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ecocare-primary">
-                                            <i class="fas fa-phone"></i>
-                                        </span>
-                                        <input type="text" name="phone" id="phone" 
-                                               class="w-full pl-14 pr-4 py-4 bg-ecocare-cream border border-ecocare-secondary/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary transition-all text-ecocare-dark shadow-sm"
-                                               placeholder="081234567890"
-                                               value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
-                                    </div>
-                                </div>
-                                
-                                <div class="space-y-2">
-                                    <label class="block text-ecocare-dark font-semibold" for="resident_id">NIK</label>
-                                    <div class="relative">
-                                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ecocare-primary">
-                                            <i class="fas fa-id-card"></i>
-                                        </span>
-                                        <input type="text" name="resident_id" id="resident_id" required 
-                                               class="w-full pl-14 pr-4 py-4 bg-ecocare-cream border border-ecocare-secondary/60 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary transition-all text-ecocare-dark shadow-sm"
-                                               placeholder="1234567890123456"
-                                               value="<?php echo htmlspecialchars($_POST['resident_id'] ?? ''); ?>">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <button type="submit" 
-                                    class="w-full bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-ecocare-primary/40 transition-all transform hover:-translate-y-1 mt-2">
-                                <i class="fas fa-user-plus mr-2"></i> Daftar Sekarang
-                            </button>
-                        </form>
-                        
-                        <div class="mt-10 pt-8 border-t border-ecocare-secondary/40 text-center">
-                            <p class="text-ecocare-dark/70">
-                                Sudah punya akun? 
-                                <a href="login.php" class="text-ecocare-primary font-bold hover:underline ml-1">Masuk sekarang</a>
-                            </p>
-                        </div>
+            <?php endif; ?>
+
+            <!-- Errors -->
+            <?php if ($errors): ?>
+                <div class="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl mb-6 flex items-start gap-3">
+                    <i class="fas fa-exclamation-circle text-red-500 mt-0.5"></i>
+                    <div>
+                        <p class="font-semibold">Registrasi Gagal</p>
+                        <ul class="text-sm mt-1 space-y-1">
+                            <?php foreach ($errors as $error): ?>
+                                <li><?php echo htmlspecialchars($error); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
                     </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Register Form -->
+            <form method="POST" action="" class="space-y-4">
+                <input type="hidden" name="csrf_token" value="<?php echo generate_csrf_token(); ?>">
+
+                <!-- Name -->
+                <div class="space-y-2">
+                    <label class="block text-gray-700 font-semibold">Nama Lengkap</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" name="name" id="name" required 
+                               class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary/30 focus:border-ecocare-primary transition-all text-gray-800"
+                               placeholder="Masukkan nama lengkap Anda"
+                               value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div class="space-y-2">
+                    <label class="block text-gray-700 font-semibold">Email</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-envelope"></i>
+                        </span>
+                        <input type="email" name="email" id="email" required 
+                               class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary/30 focus:border-ecocare-primary transition-all text-gray-800"
+                               placeholder="email@example.com"
+                               value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <!-- Phone -->
+                <div class="space-y-2">
+                    <label class="block text-gray-700 font-semibold">Nomor Telepon (Opsional)</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-phone"></i>
+                        </span>
+                        <input type="text" name="phone" id="phone" 
+                               class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary/30 focus:border-ecocare-primary transition-all text-gray-800"
+                               placeholder="081234567890"
+                               value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <!-- NIK -->
+                <div class="space-y-2">
+                    <label class="block text-gray-700 font-semibold">NIK</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-id-card"></i>
+                        </span>
+                        <input type="text" name="resident_id" id="resident_id" required 
+                               class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary/30 focus:border-ecocare-primary transition-all text-gray-800"
+                               placeholder="Masukkan NIK Anda"
+                               value="<?php echo htmlspecialchars($_POST['resident_id'] ?? ''); ?>">
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="space-y-2">
+                    <label class="block text-gray-700 font-semibold">Password</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input type="password" name="password" id="password" required 
+                               class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary/30 focus:border-ecocare-primary transition-all text-gray-800"
+                               placeholder="Minimal 8 karakter">
+                    </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="space-y-2">
+                    <label class="block text-gray-700 font-semibold">Konfirmasi Password</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fas fa-check-double"></i>
+                        </span>
+                        <input type="password" name="confirm_password" id="confirm_password" required 
+                               class="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-ecocare-primary/30 focus:border-ecocare-primary transition-all text-gray-800"
+                               placeholder="Masukkan password kembali">
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" 
+                        class="w-full bg-gradient-to-r from-ecocare-primary to-ecocare-secondary text-white font-bold py-4 rounded-2xl hover:shadow-lg hover:shadow-ecocare-primary/30 transition-all transform hover:-translate-y-0.5 mt-2">
+                    <i class="fas fa-user-plus mr-2"></i> Daftar Sekarang
+                </button>
+            </form>
+
+            <!-- Links -->
+            <div class="mt-8 space-y-4">
+                <!-- Login Link -->
+                <div class="text-center text-gray-600">
+                    Sudah punya akun? 
+                    <a href="login.php" class="text-ecocare-primary font-bold hover:underline">Masuk sekarang</a>
+                </div>
+
+                <!-- Admin Login Link -->
+                <div class="pt-4 border-t border-gray-200 text-center">
+                    <p class="text-gray-500 text-sm mb-2">Anda admin?</p>
+                    <a href="admin_login.php" class="inline-flex items-center gap-2 text-ecocare-primary font-semibold hover:underline">
+                        <i class="fas fa-user-shield"></i> Login sebagai Admin
+                    </a>
                 </div>
             </div>
         </div>

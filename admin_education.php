@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             if ($_POST['action'] === 'add') {
                 // Handle file upload
-                $image_path = null;
+                $photo_path = null;
                 if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                     $upload_dir = 'uploads/education/';
                     if (!file_exists($upload_dir)) {
@@ -20,18 +20,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $file_name = uniqid() . '_' . basename($_FILES['image']['name']);
                     $target_file = $upload_dir . $file_name;
                     if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                        $image_path = $target_file;
+                        $photo_path = $target_file;
                     }
                 }
                 
-                $stmt = $pdo->prepare("INSERT INTO educations (title, content, image_path) VALUES (?, ?, ?)");
-                $stmt->execute([$_POST['title'], $_POST['content'], $image_path]);
+                $stmt = $pdo->prepare("INSERT INTO educations (title, content, photo_path, created_by) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$_POST['title'], $_POST['content'], $photo_path, $_SESSION['user_id']]);
                 $message = "Artikel edukasi berhasil ditambahkan!";
                 $message_type = 'success';
                 
             } elseif ($_POST['action'] === 'edit') {
                 // Handle file upload for edit
-                $image_path = $_POST['current_image'] ?? null;
+                $photo_path = $_POST['current_image'] ?? null;
                 if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                     $upload_dir = 'uploads/education/';
                     if (!file_exists($upload_dir)) {
@@ -41,25 +41,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $target_file = $upload_dir . $file_name;
                     if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
                         // Delete old image if exists
-                        if ($image_path && file_exists($image_path)) {
-                            unlink($image_path);
+                        if ($photo_path && file_exists($photo_path)) {
+                            unlink($photo_path);
                         }
-                        $image_path = $target_file;
+                        $photo_path = $target_file;
                     }
                 }
                 
-                $stmt = $pdo->prepare("UPDATE educations SET title = ?, content = ?, image_path = ? WHERE id = ?");
-                $stmt->execute([$_POST['title'], $_POST['content'], $image_path, $_POST['id']]);
+                $stmt = $pdo->prepare("UPDATE educations SET title = ?, content = ?, photo_path = ? WHERE id = ?");
+                $stmt->execute([$_POST['title'], $_POST['content'], $photo_path, $_POST['id']]);
                 $message = "Artikel edukasi berhasil diperbarui!";
                 $message_type = 'success';
                 
             } elseif ($_POST['action'] === 'delete') {
                 // Delete image file first
-                $stmt = $pdo->prepare("SELECT image_path FROM educations WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT photo_path FROM educations WHERE id = ?");
                 $stmt->execute([$_POST['id']]);
                 $edu = $stmt->fetch();
-                if ($edu && $edu['image_path'] && file_exists($edu['image_path'])) {
-                    unlink($edu['image_path']);
+                if ($edu && $edu['photo_path'] && file_exists($edu['photo_path'])) {
+                    unlink($edu['photo_path']);
                 }
                 
                 $stmt = $pdo->prepare("DELETE FROM educations WHERE id = ?");
@@ -273,17 +273,17 @@ try {
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
                                     <?php foreach ($educations as $edu): ?>
-                                        <tr class="hover:bg-gray-50 transition">
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#<?php echo $edu['id']; ?></td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <?php if ($edu['image_path']): ?>
-                                                    <img src="<?php echo htmlspecialchars($edu['image_path']); ?>" class="w-20 h-16 object-cover rounded-lg" alt="Gambar">
-                                                <?php else: ?>
-                                                    <div class="w-20 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                                                        <i class="fas fa-image"></i>
-                                                    </div>
-                                                <?php endif; ?>
-                                            </td>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#<?php echo $edu['id']; ?></td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <?php if ($edu['photo_path']): ?>
+                                    <img src="<?php echo htmlspecialchars($edu['photo_path']); ?>" class="w-20 h-16 object-cover rounded-lg" alt="Gambar">
+                                <?php else: ?>
+                                    <div class="w-20 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                <?php endif; ?>
+                            </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                                                 <?php echo htmlspecialchars($edu['title']); ?>
                                             </td>
@@ -382,10 +382,10 @@ try {
             document.getElementById('idInput').value = edu.id;
             document.getElementById('titleInput').value = edu.title;
             document.getElementById('contentInput').value = edu.content;
-            document.getElementById('currentImageInput').value = edu.image_path || '';
+            document.getElementById('currentImageInput').value = edu.photo_path || '';
             
-            if (edu.image_path) {
-                document.getElementById('currentImage').src = edu.image_path;
+            if (edu.photo_path) {
+                document.getElementById('currentImage').src = edu.photo_path;
                 document.getElementById('currentImagePreview').classList.remove('hidden');
             } else {
                 document.getElementById('currentImagePreview').classList.add('hidden');

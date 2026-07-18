@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             if ($_POST['action'] === 'add') {
                 // Handle file upload
-                $image_path = null;
+                $photo_path = null;
                 if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                     $upload_dir = 'uploads/actions/';
                     if (!file_exists($upload_dir)) {
@@ -20,25 +20,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $file_name = uniqid() . '_' . basename($_FILES['image']['name']);
                     $target_file = $upload_dir . $file_name;
                     if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
-                        $image_path = $target_file;
+                        $photo_path = $target_file;
                     }
                 }
                 
-                $stmt = $pdo->prepare("INSERT INTO actions (title, description, location, date_time, image_path, status) VALUES (?, ?, ?, ?, ?, ?)");
+                // Determine progress based on status
+                $progress = 0;
+                $status = $_POST['status'];
+                if ($status === 'completed') {
+                    $progress = 100;
+                }
+                
+                $stmt = $pdo->prepare("INSERT INTO community_actions (report_id, created_by, title, description, location, target_date, target_volunteers, photo_path, status, progress) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([
+                    $_POST['report_id'],
+                    $_SESSION['user_id'],
                     $_POST['title'], 
                     $_POST['description'], 
                     $_POST['location'], 
-                    $_POST['date_time'] ?: null, 
-                    $image_path, 
-                    $_POST['status']
+                    !empty($_POST['target_date']) ? $_POST['target_date'] : null, 
+                    !empty($_POST['target_volunteers']) ? $_POST['target_volunteers'] : null, 
+                    $photo_path, 
+                    $status,
+                    $progress
                 ]);
+                
+                // Update report status to Aksi Berjalan
+                $pdo->prepare("UPDATE reports SET status = 'Aksi Berjalan' WHERE id = ?")->execute([$_POST['report_id']]);
+                
                 $message = "Aksi lingkungan berhasil ditambahkan!";
                 $message_type = 'success';
                 
             } elseif ($_POST['action'] === 'edit') {
                 // Handle file upload for edit
-                $image_path = $_POST['current_image'] ?? null;
+                $photo_path = $_POST['current_image'] ?? null;
                 if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                     $upload_dir = 'uploads/actions/';
                     if (!file_exists($upload_dir)) {
@@ -48,36 +63,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $target_file = $upload_dir . $file_name;
                     if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
                         // Delete old image if exists
-                        if ($image_path && file_exists($image_path)) {
-                            unlink($image_path);
+                        if ($photo_path && file_exists($photo_path)) {
+                            unlink($photo_path);
                         }
-                        $image_path = $target_file;
+                        $photo_path = $target_file;
                     }
                 }
                 
-                $stmt = $pdo->prepare("UPDATE actions SET title = ?, description = ?, location = ?, date_time = ?, image_path = ?, status = ? WHERE id = ?");
+                // Determine progress based on status
+                $progress = intval($_POST['progress'] ?? 0);
+                $status = $_POST['status'];
+                if ($status === 'completed') {
+                    $progress = 100;
+                }
+                
+                $stmt = $pdo->prepare("UPDATE community_actions SET report_id = ?, title = ?, description = ?, location = ?, target_date = ?, target_volunteers = ?, photo_path = ?, status = ?, progress = ? WHERE id = ?");
                 $stmt->execute([
+                    $_POST['report_id'],
                     $_POST['title'], 
                     $_POST['description'], 
                     $_POST['location'], 
-                    $_POST['date_time'] ?: null, 
-                    $image_path, 
-                    $_POST['status'], 
+                    !empty($_POST['target_date']) ? $_POST['target_date'] : null, 
+                    !empty($_POST['target_volunteers']) ? $_POST['target_volunteers'] : null, 
+                    $photo_path, 
+                    $status,
+                    $progress,
                     $_POST['id']
                 ]);
+                
+                // Update report status based on action status
+                if ($status === 'completed') {
+                    $pdo->prepare("UPDATE reports SET status = 'Selesai' WHERE id = ?")->execute([$_POST['report_id']]);
+                } elseif ($status === 'active') {
+                    $pdo->prepare("UPDATE reports SET status = 'Aksi Berjalan' WHERE id = ?")->execute([$_POST['report_id']]);
+                } elseif ($status === 'planned') {
+                    $pdo->prepare("UPDATE reports SET status = 'Komunitas Terbentuk' WHERE id = ?")->execute([$_POST['report_id']]);
+                }
+                
                 $message = "Aksi lingkungan berhasil diperbarui!";
                 $message_type = 'success';
                 
             } elseif ($_POST['action'] === 'delete') {
                 // Delete image file first
-                $stmt = $pdo->prepare("SELECT image_path FROM actions WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT photo_path, report_id FROM community_actions WHERE id = ?");
                 $stmt->execute([$_POST['id']]);
                 $act = $stmt->fetch();
-                if ($act && $act['image_path'] && file_exists($act['image_path'])) {
-                    unlink($act['image_path']);
+                if ($act && $act['photo_path'] && file_exists($act['photo_path'])) {
+                    unlink($act['photo_path']);
                 }
                 
-                $stmt = $pdo->prepare("DELETE FROM actions WHERE id = ?");
+                $stmt = $pdo->prepare("DELETE FROM community_actions WHERE id = ?");
                 $stmt->execute([$_POST['id']]);
                 $message = "Aksi lingkungan berhasil dihapus!";
                 $message_type = 'success';
@@ -89,9 +124,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get all actions
+// Get all reports (communities)
 try {
-    $stmt = $pdo->query("SELECT * FROM actions ORDER BY created_at DESC");
+    $stmt = $pdo->query("SELECT r.*, u.name as reporter_name FROM reports r JOIN users u ON r.user_id = u.id ORDER BY r.created_at DESC");
+    $reports = $stmt->fetchAll();
+} catch(PDOException $e) {
+    $reports = [];
+}
+
+// Get all actions with report data
+try {
+    $stmt = $pdo->query("SELECT ca.*, r.title as report_title, r.location as report_location FROM community_actions ca LEFT JOIN reports r ON ca.report_id = r.id ORDER BY ca.created_at DESC");
     $actions = $stmt->fetchAll();
 } catch(PDOException $e) {
     $actions = [];
@@ -239,7 +282,7 @@ try {
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-bold text-ecocare-dark">Kelola Aksi Lingkungan</h1>
-                        <p class="text-gray-500 text-sm">Tambah, edit, dan hapus aksi lingkungan</p>
+                        <p class="text-gray-500 text-sm">Tambah, edit, dan hapus aksi lingkungan untuk komunitas</p>
                     </div>
                     <div class="flex items-center gap-4">
                         <button onclick="openAddModal()" class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white px-6 py-2 rounded-xl font-semibold hover:shadow-lg transition flex items-center gap-2">
@@ -281,9 +324,11 @@ try {
                                         <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
                                         <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Gambar</th>
                                         <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Judul</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Komunitas</th>
                                         <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Lokasi</th>
-                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal & Waktu</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal</th>
                                         <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Progress</th>
                                         <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
                                     </tr>
                                 </thead>
@@ -292,8 +337,8 @@ try {
                                         <tr class="hover:bg-gray-50 transition">
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#<?php echo $act['id']; ?></td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <?php if ($act['image_path']): ?>
-                                                    <img src="<?php echo htmlspecialchars($act['image_path']); ?>" class="w-20 h-16 object-cover rounded-lg" alt="Gambar">
+                                                <?php if ($act['photo_path']): ?>
+                                                    <img src="<?php echo htmlspecialchars($act['photo_path']); ?>" class="w-20 h-16 object-cover rounded-lg" alt="Gambar">
                                                 <?php else: ?>
                                                     <div class="w-20 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
                                                         <i class="fas fa-image"></i>
@@ -303,32 +348,54 @@ try {
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                                                 <?php echo htmlspecialchars($act['title']); ?>
                                             </td>
-                                            <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title="<?php echo htmlspecialchars($act['location']); ?>">
-                                                <?php echo htmlspecialchars(substr($act['location'], 0, 40)); ?>...
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                                <?php echo htmlspecialchars($act['report_title'] ?? '-'); ?>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title="<?php echo htmlspecialchars($act['location'] ?? ''); ?>">
+                                                <?php echo htmlspecialchars(substr($act['location'] ?? '-', 0, 40)); ?>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                <?php echo $act['date_time'] ? date('d M Y H:i', strtotime($act['date_time'])) : '-'; ?>
+                                                <?php echo $act['target_date'] ? date('d M Y', strtotime($act['target_date'])) : '-'; ?>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <?php 
                                                 $status_class = '';
+                                                $status_text = '';
                                                 switch($act['status']) {
-                                                    case 'upcoming': $status_class = 'bg-blue-100 text-blue-700'; break;
-                                                    case 'ongoing': $status_class = 'bg-yellow-100 text-yellow-700'; break;
-                                                    case 'completed': $status_class = 'bg-green-100 text-green-700'; break;
+                                                    case 'planned': 
+                                                        $status_class = 'bg-yellow-100 text-yellow-700';
+                                                        $status_text = 'Direncanakan';
+                                                        break;
+                                                    case 'active': 
+                                                        $status_class = 'bg-blue-100 text-blue-700';
+                                                        $status_text = 'Berlangsung';
+                                                        break;
+                                                    case 'completed': 
+                                                        $status_class = 'bg-green-100 text-green-700';
+                                                        $status_text = 'Selesai';
+                                                        break;
                                                 }
-                                                $status_text = [
-                                                    'upcoming' => 'Akan Datang',
-                                                    'ongoing' => 'Sedang Berlangsung',
-                                                    'completed' => 'Selesai'
-                                                ];
                                                 ?>
                                                 <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $status_class; ?>">
-                                                    <?php echo htmlspecialchars($status_text[$act['status']]); ?>
+                                                    <?php echo htmlspecialchars($status_text); ?>
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="w-32">
+                                                    <div class="flex justify-between text-xs mb-1">
+                                                        <span class="text-gray-500">Progress</span>
+                                                        <span class="font-semibold text-gray-700"><?php echo $act['progress']; ?>%</span>
+                                                    </div>
+                                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                                        <div class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark h-2 rounded-full" style="width: <?php echo $act['progress']; ?>%"></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="flex items-center gap-2">
+                                                    <a href="action_detail.php?id=<?php echo $act['id']; ?>" class="w-9 h-9 bg-green-100 text-green-600 rounded-lg flex items-center justify-center hover:bg-green-200 transition" title="Lihat Detail">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
                                                     <button onclick="openEditModal(<?php echo htmlspecialchars(json_encode($act)); ?>)" class="w-9 h-9 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-200 transition" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
@@ -350,7 +417,7 @@ try {
     
     <!-- Add/Edit Modal -->
     <div id="actModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[9999]">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 max-h-[95vh] overflow-y-auto">
             <div class="p-6 border-b border-gray-200 flex items-center justify-between">
                 <h3 id="actModalTitle" class="text-xl font-bold text-ecocare-dark">Tambah Aksi Lingkungan</h3>
                 <button onclick="closeActModal()" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition">
@@ -363,9 +430,23 @@ try {
                     <input type="hidden" name="id" id="actIdInput">
                     <input type="hidden" name="current_image" id="actCurrentImageInput">
                     
-                    <div class="mb-6">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Judul Aksi</label>
-                        <input type="text" name="title" id="actTitleInput" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition" placeholder="Masukkan judul aksi">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Pilih Komunitas (Laporan)</label>
+                            <select name="report_id" id="actReportInput" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition">
+                                <option value="">-- Pilih Komunitas --</option>
+                                <?php foreach ($reports as $report): ?>
+                                    <option value="<?php echo $report['id']; ?>">
+                                        <?php echo htmlspecialchars($report['title']); ?> (<?php echo htmlspecialchars($report['status']); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Judul Aksi</label>
+                            <input type="text" name="title" id="actTitleInput" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition" placeholder="Masukkan judul aksi">
+                        </div>
                     </div>
                     
                     <div class="mb-6">
@@ -386,19 +467,33 @@ try {
                             <p id="locationStatus" class="text-sm mt-3 flex items-center gap-2"></p>
                         </div>
                         
-                        <div class="md:col-span-1">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal & Waktu</label>
-                            <input type="datetime-local" name="date_time" id="actDateTimeInput" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition">
+                        <div class="md:col-span-1 space-y-6">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal Target</label>
+                                <input type="date" name="target_date" id="actTargetDateInput" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Target Relawan</label>
+                                <input type="number" name="target_volunteers" id="actTargetVolunteersInput" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition" placeholder="Jumlah target relawan">
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="mb-6">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                        <select name="status" id="actStatusInput" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition">
-                            <option value="upcoming">Akan Datang</option>
-                            <option value="ongoing">Sedang Berlangsung</option>
-                            <option value="completed">Selesai</option>
-                        </select>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                            <select name="status" id="actStatusInput" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition">
+                                <option value="planned">Direncanakan</option>
+                                <option value="active">Berlangsung</option>
+                                <option value="completed">Selesai</option>
+                            </select>
+                        </div>
+                        
+                        <div class="md:col-span-1">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Progress (%)</label>
+                            <input type="number" name="progress" id="actProgressInput" min="0" max="100" value="0" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-ecocare-primary focus:border-ecocare-primary transition" placeholder="Progress aksi">
+                        </div>
                     </div>
                     
                     <div class="mb-6">
@@ -526,15 +621,24 @@ try {
             );
         });
         
+        document.getElementById('actStatusInput')?.addEventListener('change', function() {
+            if (this.value === 'completed') {
+                document.getElementById('actProgressInput').value = 100;
+            }
+        });
+        
         function openAddModal() {
             document.getElementById('actModalTitle').textContent = 'Tambah Aksi Lingkungan';
             document.getElementById('actActionInput').value = 'add';
             document.getElementById('actIdInput').value = '';
+            document.getElementById('actReportInput').value = '';
             document.getElementById('actTitleInput').value = '';
             document.getElementById('actDescriptionInput').value = '';
             document.getElementById('actLocationInput').value = '';
-            document.getElementById('actDateTimeInput').value = '';
-            document.getElementById('actStatusInput').value = 'upcoming';
+            document.getElementById('actTargetDateInput').value = '';
+            document.getElementById('actTargetVolunteersInput').value = '';
+            document.getElementById('actStatusInput').value = 'planned';
+            document.getElementById('actProgressInput').value = 0;
             document.getElementById('actCurrentImageInput').value = '';
             document.getElementById('locationStatus').textContent = '';
             document.getElementById('actCurrentImagePreview').classList.add('hidden');
@@ -546,16 +650,19 @@ try {
             document.getElementById('actModalTitle').textContent = 'Edit Aksi Lingkungan';
             document.getElementById('actActionInput').value = 'edit';
             document.getElementById('actIdInput').value = act.id;
+            document.getElementById('actReportInput').value = act.report_id;
             document.getElementById('actTitleInput').value = act.title;
             document.getElementById('actDescriptionInput').value = act.description;
             document.getElementById('actLocationInput').value = act.location || '';
-            document.getElementById('actDateTimeInput').value = act.date_time || '';
+            document.getElementById('actTargetDateInput').value = act.target_date || '';
+            document.getElementById('actTargetVolunteersInput').value = act.target_volunteers || '';
             document.getElementById('actStatusInput').value = act.status;
-            document.getElementById('actCurrentImageInput').value = act.image_path || '';
+            document.getElementById('actProgressInput').value = act.progress || 0;
+            document.getElementById('actCurrentImageInput').value = act.photo_path || '';
             document.getElementById('locationStatus').textContent = '';
             
-            if (act.image_path) {
-                document.getElementById('actCurrentImage').src = act.image_path;
+            if (act.photo_path) {
+                document.getElementById('actCurrentImage').src = act.photo_path;
                 document.getElementById('actCurrentImagePreview').classList.remove('hidden');
             } else {
                 document.getElementById('actCurrentImagePreview').classList.add('hidden');

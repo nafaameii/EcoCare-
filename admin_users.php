@@ -101,19 +101,38 @@ try {
             ORDER BY u.role DESC, u.created_at DESC
         ");
     }
-    $users = $stmt->fetchAll();
+    $all_users = $stmt->fetchAll();
 
-    // Get statistics
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users");
+    // Separate users and exclude default admin (admin@admin.com)
+    $admins = [];
+    $masyarakat = [];
+    foreach ($all_users as $user) {
+        if (strtolower($user['email']) === 'admin@admin.com') {
+            continue;
+        }
+        if ($user['role'] === 'admin') {
+            $admins[] = $user;
+        } else {
+            $masyarakat[] = $user;
+        }
+    }
+    $users = array_merge($admins, $masyarakat); // For filters to work
+
+    // Get statistics (exclude default admin)
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM users WHERE email != ?");
+    $stmt->execute(['admin@admin.com']);
     $total_users = $stmt->fetch()['total'];
 
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE role = 'admin'");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM users WHERE role = 'admin' AND email != ?");
+    $stmt->execute(['admin@admin.com']);
     $total_admins = $stmt->fetch()['total'];
 
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE status = 'aktif'");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM users WHERE status = 'aktif' AND email != ?");
+    $stmt->execute(['admin@admin.com']);
     $active_users = $stmt->fetch()['total'];
 
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+    $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM users WHERE MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) AND email != ?");
+    $stmt->execute(['admin@admin.com']);
     $new_users_this_month = $stmt->fetch()['total'];
 } catch (PDOException $e) {
     die("Database error: " . $e->getMessage());
@@ -386,22 +405,35 @@ try {
                 </div>
 
                 <!-- Administrator Section -->
-                <div class="mb-8">
-                    <h2 class="text-xl font-bold text-ecocare-dark mb-4 flex items-center gap-2">
-                        <i class="fas fa-crown text-yellow-500"></i> Administrator
-                    </h2>
+                <div class="mb-12" id="adminSection">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center text-white">
+                            <i class="fas fa-crown"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-ecocare-dark">Administrator</h2>
+                            <p class="text-gray-500 text-sm">Kelola akun administrator EcoCare+</p>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="adminCards">
-                        <?php foreach ($users as $user): ?>
-                            <?php if ($user['role'] === 'admin'): ?>
+                        <?php if (empty($admins)): ?>
+                            <div class="col-span-full bg-gray-50 rounded-2xl p-12 text-center">
+                                <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
+                                <p class="text-gray-500 font-medium">Tidak ada administrator lain</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($admins as $user): ?>
                                 <?php 
                                 $userStatus = $user['status'] ?? 'aktif';
-                                $status_class = [
+                                $status_classes = [
                                     'aktif' => 'bg-green-100 text-green-700',
                                     'nonaktif' => 'bg-gray-100 text-gray-700',
                                     'ditangguhkan' => 'bg-orange-100 text-orange-700'
-                                ][$userStatus];
+                                ];
+                                $status_class = $status_classes[$userStatus] ?? $status_classes['aktif'];
+                                $isAdmin = $user['role'] === 'admin';
                                 ?>
-                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>" data-created-month="<?php echo date('Y-m', strtotime($user['created_at'])); ?>">
+                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>" data-created-month="<?php echo date('Y-m', strtotime($user['created_at'])); ?>" data-role="<?php echo $user['role']; ?>">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md overflow-hidden">
                                             <?php if (isset($user['profile_pic']) && $user['profile_pic'] && file_exists($user['profile_pic'])): ?>
@@ -427,8 +459,29 @@ try {
                                                     </span>
                                                 </div>
                                             </div>
+                                            <div class="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-file-alt text-ecocare-primary"></i>
+                                                    <span><?php echo $user['report_count']; ?> Laporan</span>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-users text-blue-500"></i>
+                                                    <span><?php echo $user['community_count']; ?> Komunitas</span>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-hands-helping text-purple-500"></i>
+                                                    <span><?php echo $user['action_count']; ?> Aksi</span>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <i class="fas fa-gift text-orange-500"></i>
+                                                    <span><?php echo $user['contribution_count']; ?> Kontribusi</span>
+                                                </div>
+                                            </div>
                                             <div class="flex items-center gap-4 text-sm text-gray-600 mb-4">
                                                 <span><i class="fas fa-calendar mr-1"></i> <?php echo date('d M Y', strtotime($user['created_at'])); ?></span>
+                                                <?php if (isset($user['phone']) && $user['phone']): ?>
+                                                    <span><i class="fas fa-phone mr-1"></i> <?php echo htmlspecialchars($user['phone']); ?></span>
+                                                <?php endif; ?>
                                             </div>
                                             <div class="flex gap-3">
                                                 <button onclick="showUserDetail(<?php echo htmlspecialchars(json_encode($user)); ?>)" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition flex items-center gap-2">
@@ -443,28 +496,44 @@ try {
                                         </div>
                                     </div>
                                 </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
 
+                <!-- Divider -->
+                <div class="border-t-2 border-gray-200 mb-12"></div>
+
                 <!-- Masyarakat Section -->
-                <div>
-                    <h2 class="text-xl font-bold text-ecocare-dark mb-4 flex items-center gap-2">
-                        <i class="fas fa-users text-ecocare-primary"></i> Masyarakat
-                    </h2>
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="userCards">
-                        <?php foreach ($users as $user): ?>
-                            <?php if ($user['role'] === 'masyarakat'): ?>
+                <div id="masyarakatSection">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-xl flex items-center justify-center text-white">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-ecocare-dark">Masyarakat</h2>
+                            <p class="text-gray-500 text-sm">Pengguna aplikasi EcoCare+</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" id="masyarakatCards">
+                        <?php if (empty($masyarakat)): ?>
+                            <div class="col-span-full bg-gray-50 rounded-2xl p-12 text-center">
+                                <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
+                                <p class="text-gray-500 font-medium">Tidak ada pengguna masyarakat</p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($masyarakat as $user): ?>
                                 <?php 
                                 $userStatus = $user['status'] ?? 'aktif';
-                                $status_class = [
+                                $status_classes = [
                                     'aktif' => 'bg-green-100 text-green-700',
                                     'nonaktif' => 'bg-gray-100 text-gray-700',
                                     'ditangguhkan' => 'bg-orange-100 text-orange-700'
-                                ][$userStatus];
+                                ];
+                                $status_class = $status_classes[$userStatus] ?? $status_classes['aktif'];
+                                $isAdmin = $user['role'] === 'admin';
                                 ?>
-                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>" data-created-month="<?php echo date('Y-m', strtotime($user['created_at'])); ?>">
+                                <div class="user-card bg-white rounded-2xl shadow-lg p-6 border border-gray-100" data-name="<?php echo strtolower($user['name']); ?>" data-email="<?php echo strtolower($user['email']); ?>" data-status="<?php echo $userStatus; ?>" data-created-month="<?php echo date('Y-m', strtotime($user['created_at'])); ?>" data-role="<?php echo $user['role']; ?>">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-md overflow-hidden">
                                             <?php if (isset($user['profile_pic']) && $user['profile_pic'] && file_exists($user['profile_pic'])): ?>
@@ -527,8 +596,8 @@ try {
                                         </div>
                                     </div>
                                 </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -629,7 +698,7 @@ try {
                 filterCards();
                 
                 // Scroll to the user section
-                document.getElementById('adminCards').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                document.getElementById('userCards').scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
 
@@ -644,12 +713,39 @@ try {
             const roleFilter = document.getElementById('roleFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
 
+            // Get both sections
+            const adminSection = document.getElementById('adminSection');
+            const masyarakatSection = document.getElementById('masyarakatSection');
+            const adminCards = document.getElementById('adminCards');
+            const masyarakatCards = document.getElementById('masyarakatCards');
+
+            // First, decide whether to show each section
+            let showAdminSection = true;
+            let showMasyarakatSection = true;
+
+            if (selectedRole === 'admin') {
+                showMasyarakatSection = false;
+            }
+            if (selectedRole === 'masyarakat') {
+                showAdminSection = false;
+            }
+            if (roleFilter === 'admin') {
+                showMasyarakatSection = false;
+            }
+            if (roleFilter === 'masyarakat') {
+                showAdminSection = false;
+            }
+
+            // Now filter individual cards
+            let anyAdminVisible = false;
+            let anyMasyarakatVisible = false;
+
             document.querySelectorAll('.user-card').forEach(card => {
                 const name = card.dataset.name;
                 const email = card.dataset.email;
                 const status = card.dataset.status;
                 const createdMonth = card.dataset.createdMonth;
-                const isAdmin = card.querySelector('.bg-purple-100') !== null;
+                const cardRole = card.dataset.role;
 
                 let show = true;
 
@@ -657,16 +753,16 @@ try {
                     show = false;
                 }
 
-                if (selectedRole === 'admin' && !isAdmin) {
+                if (selectedRole === 'admin' && cardRole !== 'admin') {
                     show = false;
                 }
-                if (selectedRole === 'masyarakat' && isAdmin) {
+                if (selectedRole === 'masyarakat' && cardRole !== 'masyarakat') {
                     show = false;
                 }
 
                 if (roleFilter !== 'all') {
-                    if (roleFilter === 'admin' && !isAdmin) show = false;
-                    if (roleFilter === 'masyarakat' && isAdmin) show = false;
+                    if (roleFilter === 'admin' && cardRole !== 'admin') show = false;
+                    if (roleFilter === 'masyarakat' && cardRole !== 'masyarakat') show = false;
                 }
 
                 if (statusFilter !== 'all' && status !== statusFilter) {
@@ -682,7 +778,20 @@ try {
                 }
 
                 card.style.display = show ? 'block' : 'none';
+
+                // Count visible cards
+                if (show) {
+                    if (cardRole === 'admin') {
+                        anyAdminVisible = true;
+                    } else {
+                        anyMasyarakatVisible = true;
+                    }
+                }
             });
+
+            // Show/hide sections
+            adminSection.style.display = (showAdminSection && anyAdminVisible) ? 'block' : 'none';
+            masyarakatSection.style.display = (showMasyarakatSection && anyMasyarakatVisible) ? 'block' : 'none';
         }
 
         // Show user detail

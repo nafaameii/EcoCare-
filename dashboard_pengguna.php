@@ -8,48 +8,74 @@ $user_name = $_SESSION['name'];
 $user_email = $_SESSION['email'];
 $user_profile_pic = isset($_SESSION['profile_pic']) ? $_SESSION['profile_pic'] : null;
 
-// Handle mark notifications as read
-if (isset($_GET['mark_read']) && $_GET['mark_read'] == 1) {
-    try {
-        $stmt = $pdo->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0");
-        $stmt->execute([$user_id]);
-    } catch (PDOException $e) {
-        // Ignore errors
-    }
-}
-
-// Get notifications
+// Simple notifications: always empty
 $unread_count = 0;
 $notifications = [];
-try {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
-    $stmt->execute([$user_id]);
-    $unread_count = $stmt->fetchColumn();
-
-    $stmt = $pdo->prepare("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 10");
-    $stmt->execute([$user_id]);
-    $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $unread_count = 0;
-    $notifications = [];
-}
 
 // Get user's community info
 $my_community = null;
 $community_member_count = 0;
 try {
-    $stmt = $pdo->prepare("SELECT c.*, cm.joined_at FROM communities c JOIN community_members cm ON c.id = cm.community_id WHERE cm.user_id = ? ORDER BY c.created_at DESC LIMIT 1");
+    $stmt = $pdo->prepare("SELECT r.*, cm.joined_at FROM reports r JOIN community_members cm ON r.id = cm.report_id WHERE cm.user_id = ? ORDER BY cm.joined_at DESC LIMIT 1");
     $stmt->execute([$user_id]);
     $my_community = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($my_community) {
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM community_members WHERE community_id = ?");
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM community_members WHERE report_id = ?");
         $stmt->execute([$my_community['id']]);
         $community_member_count = $stmt->fetchColumn();
     }
 } catch (PDOException $e) {
     $my_community = null;
     $community_member_count = 0;
+}
+
+// Get user's upcoming action
+$upcoming_action = null;
+try {
+    if ($my_community) {
+        $stmt = $pdo->prepare("SELECT * FROM community_actions WHERE report_id = ? AND status IN ('planned', 'active') ORDER BY target_date ASC, created_at ASC LIMIT 1");
+        $stmt->execute([$my_community['id']]);
+        $upcoming_action = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+} catch (PDOException $e) {
+    $upcoming_action = null;
+}
+
+// Get user's contribution count this month
+$monthly_contributions = 0;
+try {
+    $current_month = date('Y-m');
+    // Count reports created this month
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM reports WHERE user_id = ? AND DATE_FORMAT(created_at, '%Y-%m') = ?");
+    $stmt->execute([$user_id, $current_month]);
+    $reports_this_month = $stmt->fetchColumn();
+    
+    // Count community contributions this month
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM community_contributions cc JOIN community_actions ca ON cc.action_id = ca.id WHERE cc.user_id = ? AND DATE_FORMAT(cc.created_at, '%Y-%m') = ?");
+    $stmt->execute([$user_id, $current_month]);
+    $contributions_this_month = $stmt->fetchColumn();
+    
+    $monthly_contributions = ($reports_this_month * 25) + ($contributions_this_month * 15);
+} catch (PDOException $e) {
+    $monthly_contributions = 0;
+}
+
+// Get upcoming actions
+$upcoming_actions = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT ca.*, r.title as report_title
+        FROM community_actions ca
+        LEFT JOIN reports r ON ca.report_id = r.id
+        WHERE ca.status IN ('planned', 'active')
+        ORDER BY ca.target_date ASC, ca.created_at ASC
+        LIMIT 5
+    ");
+    $stmt->execute();
+    $upcoming_actions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $upcoming_actions = [];
 }
 
 // Get activity feed (user's reports + notifications, unified)
@@ -302,7 +328,7 @@ try {
                     <li>
                         <a href="dashboard_pengguna.php" class="sidebar-active flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 font-medium transition-all duration-200">
                             <i class="fas fa-home w-5 text-center"></i>
-                            Dashboard
+                            Beranda
                         </a>
                     </li>
                     <li>
@@ -366,17 +392,21 @@ try {
         <!-- Main Content -->
         <main class="flex-1 lg:ml-72">
             <!-- Header -->
-            <header class="glass sticky top-0 z-30 border-b border-gray-100 px-8 py-4">
+            <header class="bg-white shadow-sm border-b border-gray-100 px-8 py-4 sticky top-0 z-30">
                 <div class="flex items-center justify-between">
-                    <!-- Search -->
-                    <div class="flex items-center gap-4">
-                        <button id="mobileMenuBtn" class="lg:hidden w-10 h-10 rounded-xl bg-lightgreen text-primary flex items-center justify-center">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                        <div class="relative flex-1 max-w-md">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" placeholder="Search reports, events..." class="pl-12 pr-6 py-3 bg-gray-50 border border-gray-200 rounded-2xl w-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+                    <!-- Left Header -->
+                    <div>
+                        <div class="flex items-center gap-4">
+                            <button id="mobileMenuBtn" class="lg:hidden w-10 h-10 rounded-xl bg-lightgreen text-primary flex items-center justify-center">
+                                <i class="fas fa-bars"></i>
+                            </button>
+                            <a href="index.php" class="px-4 py-2 text-gray-600 hover:text-primary transition flex items-center gap-2">
+                                <i class="fas fa-home"></i>
+                                <span>Beranda</span>
+                            </a>
                         </div>
+                        <h1 class="text-2xl font-bold text-gray-900 mt-2">Dashboard Pengguna</h1>
+                        <p class="text-gray-500 text-sm">Selamat datang, <?= htmlspecialchars($user_name) ?></p>
                     </div>
 
                     <!-- Right Header -->
@@ -503,11 +533,11 @@ try {
                             <div class="bg-white/20 backdrop-blur rounded-2xl p-5 border border-white/20">
                                 <h4 class="text-sm font-semibold mb-2 flex items-center gap-2"><i class="fas fa-fire"></i> Kontribusi Bulan Ini</h4>
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-2xl font-extrabold"><?= $total_reports * 25 ?></span>
+                                    <span class="text-2xl font-extrabold"><?= $monthly_contributions ?></span>
                                     <span class="text-xs text-white/80">pts</span>
                                 </div>
                                 <div class="w-full bg-white/20 rounded-full h-2.5 overflow-hidden">
-                                    <div class="bg-gradient-to-r from-yellow-400 to-yellow-300 h-full rounded-full" style="width: min(<?= $total_reports * 10 ?>,100)%"></div>
+                                    <div class="bg-gradient-to-r from-yellow-400 to-yellow-300 h-full rounded-full" style="width: min(<?= min($monthly_contributions / 2, 100) ?>,100)%"></div>
                                 </div>
                             </div>
 
@@ -525,8 +555,18 @@ try {
                             <!-- Upcoming Action -->
                             <div class="bg-white/20 backdrop-blur rounded-2xl p-5 border border-white/20">
                                 <h4 class="text-sm font-semibold mb-2 flex items-center gap-2"><i class="fas fa-calendar-star"></i> Aksi Mendatang</h4>
-                                <p class="font-semibold mb-1"><?= $my_community ? htmlspecialchars($my_community['current_action']) : 'Tanam Pohon' ?></p>
-                                <p class="text-xs text-white/80">Hari ini • 08:00 WIB</p>
+                                <?php if (!empty($upcoming_actions)): ?>
+                                    <?php $first_action = $upcoming_actions[0]; ?>
+                                    <a href="action_detail.php?id=<?= $first_action['id'] ?>" class="block">
+                                        <p class="font-semibold mb-1 hover:underline"><?= htmlspecialchars($first_action['title']) ?></p>
+                                        <p class="text-xs text-white/80 flex items-center gap-1">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                            <?= $first_action['target_date'] ? date('d M Y', strtotime($first_action['target_date'])) : 'Segera' ?>
+                                        </p>
+                                    </a>
+                                <?php else: ?>
+                                    <p class="font-semibold mb-1">Belum ada aksi mendatang</p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -792,13 +832,13 @@ try {
                         </div>
 
                         <div class="card-lift bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-                            <div class="h-40 bg-gradient-to-br from-green-400 to-primary flex items-center justify-center">
-                                <i class="fas fa-tree text-6xl text-white"></i>
+                            <div class="h-40 bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                                <i class="fas fa-shopping-bag text-6xl text-white"></i>
                             </div>
                             <div class="p-6">
-                                <h3 class="font-bold text-gray-900 mb-2">Tanam Pohon Bersama</h3>
-                                <p class="text-sm text-gray-500 mb-4">Program penghijauan untuk masa depan yang lebih hijau</p>
-                                <a href="edukasi_pohon.php" class="text-primary font-semibold text-sm hover:underline">Baca Selengkapnya →</a>
+                                <h3 class="font-bold text-gray-900 mb-2">Kurangi Penggunaan Plastik</h3>
+                                <p class="text-sm text-gray-500 mb-4">Tips mengurangi penggunaan plastik sekali pakai</p>
+                                <a href="edukasi_plastik.php" class="text-primary font-semibold text-sm hover:underline">Baca Selengkapnya →</a>
                             </div>
                         </div>
 
@@ -819,26 +859,7 @@ try {
         </main>
     </div>
 
-    <!-- Floating Action Button -->
-    <div class="fab-menu fixed bottom-8 right-8 z-50">
-        <div class="fab-options flex flex-col gap-4 mb-4">
-            <a href="submit_report.php" class="bg-white shadow-xl p-4 rounded-2xl flex items-center gap-3 hover:bg-lightgreen transition-all">
-                <i class="fas fa-plus-circle text-2xl text-primary"></i>
-                <span class="font-semibold text-gray-700">Buat Laporan</span>
-            </a>
-            <button class="bg-white shadow-xl p-4 rounded-2xl flex items-center gap-3 hover:bg-lightgreen transition-all">
-                <i class="fas fa-qrcode text-2xl text-blue-600"></i>
-                <span class="font-semibold text-gray-700">Scan QR</span>
-            </button>
-            <button class="bg-white shadow-xl p-4 rounded-2xl flex items-center gap-3 hover:bg-lightgreen transition-all">
-                <i class="fas fa-users text-2xl text-purple-600"></i>
-                <span class="font-semibold text-gray-700">Gabung Komunitas</span>
-            </button>
-        </div>
-        <button id="fabBtn" class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-full shadow-2xl text-white text-2xl hover:scale-110 transition-all flex items-center justify-center">
-            <i class="fas fa-plus transition-transform duration-300" id="fabIcon"></i>
-        </button>
-    </div>
+
 
     <!-- Report Detail Modal -->
     <div id="reportDetailModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-[9999]">
@@ -888,13 +909,7 @@ try {
             document.getElementById('mobileMenuBtn')?.addEventListener('click', toggleMobileSidebar);
         });
 
-        // FAB Menu
-        document.getElementById('fabBtn').addEventListener('click', function() {
-            document.querySelector('.fab-menu').classList.toggle('open');
-            document.getElementById('fabIcon').classList.toggle('fa-plus');
-            document.getElementById('fabIcon').classList.toggle('fa-times');
-            document.getElementById('fabIcon').classList.toggle('rotate-45');
-        });
+
 
         // Profile Dropdown
         document.getElementById('profileDropdownBtn').addEventListener('click', function(e) {

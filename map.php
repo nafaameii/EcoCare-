@@ -147,6 +147,27 @@ try {
             </div>
         <?php endif; ?>
         
+        <!-- Info Card: Cara Bergabung Komunitas -->
+        <div class="bg-white rounded-3xl shadow-lg p-6 border border-ecocare-secondary/30 mb-10">
+            <div class="flex items-start gap-4">
+                <div class="w-14 h-14 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-2xl flex items-center justify-center text-white text-3xl flex-shrink-0">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xl font-bold text-ecocare-dark mb-3">Cara Bergabung ke Komunitas</h3>
+                    <ol class="text-sm text-ecocare-dark/80 space-y-3 list-decimal list-inside">
+                        <li>Pilih salah satu laporan pada peta atau bagian Laporan Terbaru.</li>
+                        <li>Buka halaman Detail Laporan.</li>
+                        <li>Klik tombol Gabung Komunitas untuk bergabung.</li>
+                    </ol>
+                    <p class="text-sm text-ecocare-dark/60 mt-3">
+                        <i class="fas fa-lightbulb text-ecocare-orange mr-1"></i> 
+                        Setelah bergabung, komunitas akan muncul pada menu <span class="font-semibold text-ecocare-primary">Komunitas Saya</span>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Statistik Cards -->
         <div class="grid md:grid-cols-4 gap-6 mb-10">
             <div class="stat-card bg-white rounded-2xl shadow-lg p-6 border border-ecocare-secondary/30">

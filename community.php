@@ -33,10 +33,10 @@ try {
     // Check if current user is a member (only for non-admins)
     $is_member = false;
     $stmt = $pdo->prepare("
-        SELECT cm.*, u.name, u.profile_pic
+        SELECT cm.*, u.name, u.profile_pic, u.role
         FROM community_members cm
         JOIN users u ON cm.user_id = u.id
-        WHERE cm.report_id = ?
+        WHERE cm.report_id = ? AND u.role = 'masyarakat'
         ORDER BY cm.joined_at DESC
     ");
     $stmt->execute([$report_id]);
@@ -144,7 +144,7 @@ try {
         </a>
 
         <div class="grid lg:grid-cols-3 gap-8">
-            <!-- Left Column: Community Info -->
+            <!-- Left Column: Community Info & Action Buttons -->
             <div class="lg:col-span-2 space-y-6">
                 <!-- Community Action Header -->
                 <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
@@ -156,29 +156,61 @@ try {
                     </p>
 
                     <!-- Action Status & Progress -->
-                    <div class="grid sm:grid-cols-2 gap-6 mb-8">
-                        <div>
-                            <span class="text-sm text-gray-500 font-medium mb-1 block">Status Aksi</span>
-                            <span class="px-4 py-2 rounded-full text-sm font-semibold status-<?= $report['action_status'] ?? 'planned' ?>">
-                                <?php 
-                                $status_map = [
-                                    'planned' => 'Direncanakan',
-                                    'active' => 'Berjalan',
-                                    'completed' => 'Selesai'
-                                ];
-                                echo $status_map[$report['action_status'] ?? 'planned'] ?? 'Direncanakan';
-                                ?>
-                            </span>
+                <div class="grid sm:grid-cols-2 gap-6 mb-8">
+                    <div>
+                        <span class="text-sm text-gray-500 font-medium mb-1 block">Status Aksi</span>
+                        <?php
+                            // Determine status based on report status as source of truth
+                            $displayStatus = $report['action_status'] ?? 'planned';
+                            $displayProgress = $report['progress'] ?? 0;
+                            
+                            if ($report['status'] === 'Selesai') {
+                                $displayStatus = 'completed';
+                                $displayProgress = 100;
+                            } elseif ($report['status'] === 'Aksi Berjalan' && $displayStatus === 'planned') {
+                                $displayStatus = 'active';
+                            } elseif ($report['status'] === 'Komunitas Terbentuk' && $displayStatus === 'active') {
+                                $displayStatus = 'planned';
+                            }
+                        ?>
+                        <span class="px-4 py-2 rounded-full text-sm font-semibold status-<?= $displayStatus ?>">
+                            <?php 
+                            $statusMap = [
+                                'planned' => 'Direncanakan',
+                                'active' => 'Berlangsung',
+                                'completed' => 'Selesai'
+                            ];
+                            echo $statusMap[$displayStatus] ?? 'Direncanakan';
+                            ?>
+                        </span>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="text-gray-500 font-medium">Progress Aksi</span>
+                            <span class="font-bold text-ecocare-primary"><?= $displayProgress ?>%</span>
                         </div>
-                        <div>
-                            <div class="flex items-center justify-between text-sm mb-1">
-                                <span class="text-gray-500 font-medium">Progress Aksi</span>
-                                <span class="font-bold text-ecocare-primary"><?= $report['progress'] ?? 0 ?>%</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark h-3 rounded-full" style="width: <?= $report['progress'] ?? 0 ?>%"></div>
-                            </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark h-3 rounded-full" style="width: <?= $displayProgress ?>%"></div>
                         </div>
+                    </div>
+                </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-wrap gap-4 mb-6">
+                        <?php if (!$isAdmin): ?>
+                            <?php if ($is_member): ?>
+                                <button id="leaveBtn" class="bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-300 transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-sign-out-alt"></i> Keluar dari Komunitas
+                                </button>
+                            <?php else: ?>
+                                <button id="joinBtn" class="bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center gap-2">
+                                    <i class="fas fa-hands-helping"></i> Gabung Aksi
+                                </button>
+                            <?php endif; ?>
+                            <button id="inviteBtn" class="bg-white border-2 border-ecocare-primary text-ecocare-primary px-6 py-3 rounded-xl font-semibold hover:bg-ecocare-primary hover:text-white transition flex items-center justify-center gap-2">
+                                <i class="fas fa-share-alt"></i> Ajak Teman
+                            </button>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Volunteers -->
@@ -217,14 +249,14 @@ try {
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-700 mb-2">Status Aksi</label>
                                         <select id="newActionStatus" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                            <option value="planned" <?= $report['action_status'] === 'planned' ? 'selected' : '' ?>>Direncanakan</option>
-                                            <option value="active" <?= $report['action_status'] === 'active' ? 'selected' : '' ?>>Berjalan</option>
-                                            <option value="completed" <?= $report['action_status'] === 'completed' ? 'selected' : '' ?>>Selesai</option>
+                                            <option value="planned" <?= $displayStatus === 'planned' ? 'selected' : '' ?>>Direncanakan</option>
+                                            <option value="active" <?= $displayStatus === 'active' ? 'selected' : '' ?>>Berlangsung</option>
+                                            <option value="completed" <?= $displayStatus === 'completed' ? 'selected' : '' ?>>Selesai</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-700 mb-2">Progress (%)</label>
-                                        <input type="number" id="newActionProgress" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-500" value="<?= $report['progress'] ?? 0 ?>" min="0" max="100">
+                                        <input type="number" id="newActionProgress" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-500" value="<?= $displayProgress ?>" min="0" max="100">
                                     </div>
                                 </div>
                                 <button type="submit" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition">
@@ -235,45 +267,7 @@ try {
                         </div>
                     <?php endif; ?>
 
-                    <!-- Create/Edit Action Form -->
-                    <?php if (!$isAdmin && $is_member && !$report['action_title']): ?>
-                        <div class="mt-6 pt-6 border-t border-gray-100">
-                            <h3 class="text-lg font-semibold text-ecocare-dark mb-4 flex items-center gap-2">
-                                <i class="fas fa-plus-circle text-ecocare-primary"></i>
-                                Buat Aksi Komunitas
-                            </h3>
-                            <form id="createActionForm" class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Judul Aksi *</label>
-                                        <input type="text" id="actionTitle" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-ecocare-primary" placeholder="Contoh: Bersih Sungai Serayu" required>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Target Relawan</label>
-                                        <input type="number" id="actionTargetVolunteers" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-ecocare-primary" min="1">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Deskripsi Aksi *</label>
-                                    <textarea id="actionDescription" rows="3" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-ecocare-primary" placeholder="Deskripsi detail aksi..." required></textarea>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal Mulai</label>
-                                        <input type="date" id="actionStartDate" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-ecocare-primary">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">Tanggal Selesai</label>
-                                        <input type="date" id="actionEndDate" class="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-ecocare-primary">
-                                    </div>
-                                </div>
-                                <button type="submit" class="w-full bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transition">
-                                    <i class="fas fa-rocket mr-2"></i>
-                                    Buat Aksi Komunitas
-                                </button>
-                            </form>
-                        </div>
-                    <?php endif; ?>
+
                 </div>
 
                 <!-- Community Discussion - Chat Style -->
@@ -288,7 +282,7 @@ try {
                     <!-- Chat Messages Area -->
                     <div id="commentsList" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
                         <?php if (empty($comments)): ?>
-                            <div class="text-center py-16 text-gray-500">
+                            <div class="text-center py-16 text-gray-500" id="emptyChat">
                                 <i class="fas fa-comment-slash text-5xl mb-4 opacity-30"></i>
                                 <p class="text-lg">Belum ada diskusi</p>
                                 <?php if (!$isAdmin && !$is_member): ?>
@@ -298,7 +292,7 @@ try {
                         <?php else: ?>
                             <?php foreach (array_reverse($comments) as $comment): ?>
                                 <?php $isCurrentUser = $comment['user_id'] == $_SESSION['user_id']; ?>
-                                <div class="flex <?php echo $isCurrentUser ? 'justify-end' : 'justify-start'; ?>">
+                                <div class="flex <?php echo $isCurrentUser ? 'justify-end' : 'justify-start'; ?>" data-message-id="<?php echo $comment['id']; ?>">
                                     <div class="flex gap-3 <?php echo $isCurrentUser ? 'flex-row-reverse' : 'flex-row'; ?> max-w-[80%]">
                                         <?php if (!$isCurrentUser): ?>
                                             <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
@@ -369,36 +363,8 @@ try {
                 </div>
             </div>
 
-            <!-- Right Column: Members & Actions -->
+            <!-- Right Column: Members -->
             <div class="space-y-6">
-                <!-- Action Buttons -->
-                <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-                    <?php if (!$isAdmin): ?>
-                        <?php if ($is_member): ?>
-                            <button id="leaveBtn" class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition flex items-center justify-center gap-2">
-                                <i class="fas fa-sign-out-alt"></i> Keluar dari Komunitas
-                            </button>
-                        <?php else: ?>
-                            <button id="joinBtn" class="w-full bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white py-3 rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center gap-2">
-                                <i class="fas fa-hands-helping"></i> Gabung Aksi
-                            </button>
-                        <?php endif; ?>
-                        <hr class="my-4 border-gray-100">
-                        <button id="inviteBtn" class="w-full bg-white border-2 border-ecocare-primary text-ecocare-primary py-3 rounded-xl font-semibold hover:bg-ecocare-primary hover:text-white transition flex items-center justify-center gap-2">
-                            <i class="fas fa-share-alt"></i> Ajak Teman
-                        </button>
-                    <?php else: ?>
-                        <div class="space-y-3">
-                            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl">
-                                <h4 class="font-semibold text-blue-800 flex items-center gap-2 mb-1">
-                                    <i class="fas fa-shield-alt"></i> Panel Admin
-                                </h4>
-                                <p class="text-sm text-blue-700">Anda login sebagai Admin. Anda dapat melihat dan mengelola komunitas ini.</p>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                </div>
-
                 <!-- Members List -->
                 <div class="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
                     <h3 class="text-xl font-bold text-ecocare-dark mb-4 flex items-center gap-2">
@@ -432,6 +398,17 @@ try {
                         <?php endif; ?>
                     </div>
                 </div>
+
+                <?php if ($isAdmin): ?>
+                    <div class="space-y-3">
+                        <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                            <h4 class="font-semibold text-blue-800 flex items-center gap-2 mb-1">
+                                <i class="fas fa-shield-alt"></i> Panel Admin
+                            </h4>
+                            <p class="text-sm text-blue-700">Anda login sebagai Admin. Anda dapat melihat dan mengelola komunitas ini.</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </main>
@@ -473,10 +450,14 @@ try {
         let isMember = <?= $is_member ? 'true' : 'false' ?>;
         const isAdmin = <?= $isAdmin ? 'true' : 'false' ?>;
         const actionId = <?= $report['action_id'] ?? 'null' ?>;
+        const currentUserId = <?= $_SESSION['user_id'] ?>;
+        const currentUserName = "<?= addslashes($_SESSION['name']) ?>";
+        const currentUserProfilePic = <?= isset($_SESSION['profile_pic']) && $_SESSION['profile_pic'] ? '"' . addslashes($_SESSION['profile_pic']) . '"' : 'null' ?>;
         
         // Auto-resize textarea and enable/disable send button
         const commentInput = document.getElementById('commentInput');
         const sendBtn = document.getElementById('sendBtn');
+        const commentsList = document.getElementById('commentsList');
         
         if (commentInput && sendBtn) {
             commentInput.addEventListener('input', () => {
@@ -485,12 +466,74 @@ try {
                 commentInput.style.height = Math.min(commentInput.scrollHeight, 150) + 'px';
                 
                 // Enable/disable button
-                if (commentInput.value.trim()) {
-                    sendBtn.disabled = false;
-                } else {
-                    sendBtn.disabled = true;
-                }
+                sendBtn.disabled = !commentInput.value.trim();
             });
+        }
+
+        // Function to add a chat bubble to DOM with duplicate check
+        function addCommentToDOM(comment, isCurrentUser) {
+            // Check for duplicates using message id
+            const existing = document.querySelector(`[data-message-id="${comment.id}"]`);
+            if (existing) return; // Skip if already exists
+
+            const emptyChat = document.getElementById('emptyChat');
+            if (emptyChat) emptyChat.remove();
+
+            const div = document.createElement('div');
+            div.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`;
+            div.setAttribute('data-message-id', comment.id);
+            
+            const profilePicHTML = isCurrentUser 
+                ? (currentUserProfilePic 
+                    ? `<img src="${currentUserProfilePic}" class="w-full h-full object-cover" alt="Profil">`
+                    : `<div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center">${currentUserName.charAt(0).toUpperCase()}</div>`)
+                : (comment.profile_pic 
+                    ? `<img src="${comment.profile_pic}" class="w-full h-full object-cover" alt="Profil">`
+                    : `<div class="w-full h-full bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark flex items-center justify-center">${comment.name.charAt(0).toUpperCase()}</div>`);
+            
+            const date = new Date(comment.created_at);
+            const formattedDate = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ', ' + date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+            div.innerHTML = `
+                <div class="flex gap-3 ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'} max-w-[80%]">
+                    ${!isCurrentUser ? `<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">${profilePicHTML}</div>` : ''}
+                    <div class="flex flex-col gap-1">
+                        ${!isCurrentUser ? `<span class="text-sm font-semibold text-ecocare-dark ml-1">${comment.name}</span>` : ''}
+                        <div class="p-4 rounded-2xl shadow-sm ${isCurrentUser ? 'bg-gradient-to-r from-ecocare-primary to-ecocare-green-dark text-white rounded-br-md' : 'bg-white border border-gray-100 rounded-bl-md'}">
+                            <p class="text-sm leading-relaxed">${comment.comment}</p>
+                        </div>
+                        <span class="text-xs text-gray-400 ${isCurrentUser ? 'text-right' : 'text-left'}">${formattedDate}</span>
+                    </div>
+                    ${isCurrentUser ? `<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">${profilePicHTML}</div>` : ''}
+                </div>
+            `;
+            
+            commentsList.appendChild(div);
+            commentsList.scrollTop = commentsList.scrollHeight;
+        }
+
+        // Function to fetch and append new comments using lastMessageId
+        let lastMessageId = <?= !empty($comments) ? $comments[0]['id'] : '0' ?>;
+        async function fetchNewComments() {
+            try {
+                const res = await fetch(`api/community.php?action=get_data&report_id=${reportId}`);
+                const data = await res.json();
+                if (data.success && data.data.comments) {
+                    const newComments = data.data.comments
+                        .filter(c => c.id > lastMessageId)
+                        .sort((a, b) => a.id - b.id);
+                    
+                    newComments.forEach(comment => {
+                        addCommentToDOM(comment, comment.user_id == currentUserId);
+                    });
+                    
+                    if (newComments.length > 0) {
+                        lastMessageId = newComments[newComments.length - 1].id;
+                    }
+                }
+            } catch (e) {
+                console.error('Error fetching comments:', e);
+            }
         }
 
         // Join button
@@ -525,47 +568,48 @@ try {
             }
         });
 
-        // Comment form
+        // Comment form (AJAX) - prevent double submissions
+        let isSubmittingComment = false;
         document.getElementById('commentForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const comment = document.getElementById('commentInput').value;
-            if (!comment.trim() || isAdmin) return;
+            if (isSubmittingComment) return;
+            const comment = commentInput.value.trim();
+            if (!comment || isAdmin) return;
 
+            isSubmittingComment = true;
             const formData = new FormData();
             formData.append('report_id', reportId);
             formData.append('comment', comment);
-            const res = await fetch('api/community.php?action=add_comment', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert(data.message);
+            
+            try {
+                const res = await fetch('api/community.php?action=add_comment', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    // Clear input
+                    commentInput.value = '';
+                    commentInput.style.height = 'auto';
+                    sendBtn.disabled = true;
+                    
+                    // Add new comment to DOM immediately
+                    if (data.comment) {
+                        addCommentToDOM(data.comment, true);
+                        // Update lastMessageId to prevent duplicate from polling
+                        if (data.comment.id > lastMessageId) {
+                            lastMessageId = data.comment.id;
+                        }
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Gagal mengirim pesan');
+            } finally {
+                isSubmittingComment = false;
             }
         });
 
-        // Create action form
-        document.getElementById('createActionForm')?.addEventListener('submit', async (e) => {
-            e.preventDefault();
 
-            const formData = new FormData();
-            formData.append('report_id', reportId);
-            formData.append('title', document.getElementById('actionTitle').value);
-            formData.append('description', document.getElementById('actionDescription').value);
-            formData.append('start_date', document.getElementById('actionStartDate').value);
-            formData.append('end_date', document.getElementById('actionEndDate').value);
-            formData.append('target_volunteers', document.getElementById('actionTargetVolunteers').value);
-
-            const res = await fetch('api/community.php?action=create_action', { method: 'POST', body: formData });
-            const data = await res.json();
-
-            if (data.success) {
-                alert(data.message);
-                location.reload();
-            } else {
-                alert(data.message);
-            }
-        });
 
         // Update action form (admin)
         document.getElementById('updateActionForm')?.addEventListener('submit', async (e) => {
@@ -652,6 +696,17 @@ try {
                 document.getElementById('shareModal').classList.remove('flex');
             }
         });
+
+        // Poll for new comments every 2 seconds (ensure only one interval runs)
+        let pollInterval = null;
+        if (!pollInterval) {
+            pollInterval = setInterval(fetchNewComments, 2000);
+        }
+        
+        // Scroll to bottom on initial load
+        if (commentsList) {
+            commentsList.scrollTop = commentsList.scrollHeight;
+        }
     </script>
 </body>
 </html>

@@ -96,10 +96,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </script>
     <style>
         * { font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #f4ebd0 0%, #a8d5ba 100%); }
+        .admin-bg {
+            background-image: url('https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+<body class="admin-bg min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full">
         <div class="text-center mb-10">
             <div class="w-20 h-20 bg-gradient-to-br from-ecocare-primary to-ecocare-green-dark rounded-3xl flex items-center justify-center mx-auto text-white text-4xl shadow-xl shadow-ecocare-primary/30 mb-6">
@@ -109,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <p class="text-xl text-ecocare-dark/70">Masuk ke Panel Admin</p>
         </div>
         
-        <div class="bg-white rounded-3xl shadow-2xl p-10 border border-ecocare-secondary/30">
+        <div class="glass-card rounded-3xl shadow-2xl p-10 border border-ecocare-secondary/30">
             <?php if (!empty($errors)): ?>
                 <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
                     <i class="fas fa-exclamation-circle text-xl"></i>
